@@ -1,100 +1,92 @@
 # PoolScan — DeFi Explorer
 
-> Real-time Uniswap V2/V3 pool and wallet liquidity analytics
-
-## Stack
-
-| Layer      | Tech                              |
-|------------|-----------------------------------|
-| Framework  | Next.js 14 (App Router)           |
-| Styling    | Tailwind CSS                      |
-| Database   | Supabase (PostgreSQL)             |
-| On-chain   | Wagmi v2 + Viem                   |
-| Deploy     | Vercel                            |
+WEMIX 체인의 Uniswap V2/V3 풀과 지갑 유동성을 실시간으로 모니터링하는 내부 툴입니다.
+별도 백엔드나 DB 없이 브라우저 localStorage에 데이터를 저장하며, Vercel에 정적 배포합니다.
 
 ---
 
-## 1. 로컬 세팅
+## Stack
+
+| Layer     | Tech                        |
+|-----------|-----------------------------|
+| Framework | Next.js 14 (App Router)     |
+| Styling   | Tailwind CSS                |
+| Storage   | Browser localStorage        |
+| On-chain  | Viem v2                     |
+| Deploy    | Vercel                      |
+
+---
+
+## 로컬 실행
 
 ```bash
-# 1) 레포 클론 후 의존성 설치
 git clone https://github.com/YOUR_USERNAME/poolscan.git
 cd poolscan
 npm install
-
-# 2) 환경 변수 설정
-cp .env.local.example .env.local
-# .env.local 파일에 Supabase URL/Key, RPC URL 입력
-
-# 3) 개발 서버 실행
 npm run dev
 # → http://localhost:3000
 ```
 
----
-
-## 2. Supabase 세팅
-
-1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
-2. **SQL Editor → New query** 열기
-3. `supabase/schema.sql` 내용 전체 붙여넣기 후 실행
-4. **Settings → API** 에서 `URL` 과 `anon key` 복사
-5. `.env.local` 에 붙여넣기
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
-```
+환경 변수(`.env.local`)는 선택 사항입니다. 비워두면 내장 기본값(WEMIX 퍼블릭 RPC)이 사용됩니다.
+RPC를 커스텀하려면 `.env.local`의 값을 수정하거나, 앱 내 **Settings** 페이지(`/settings`)에서 변경할 수 있습니다.
 
 ---
 
-## 3. GitHub + Vercel 배포
+## Vercel 배포
 
-```bash
-# GitHub 레포 생성 후
-git init
-git add .
-git commit -m "feat: initial PoolScan scaffold"
-git remote add origin https://github.com/YOUR_USERNAME/poolscan.git
-git push -u origin main
-```
+1. GitHub에 push
+2. [vercel.com](https://vercel.com) → **New Project** → 레포 연결
+3. **Deploy** — 환경 변수 없이 바로 배포 가능
 
-그 다음 [vercel.com](https://vercel.com) 에서:
-
-1. **New Project** → GitHub 레포 연결
-2. **Environment Variables** 탭에서 `.env.local` 값 동일하게 입력
-3. **Deploy** 클릭 → 자동 배포 완료 🎉
+필요 시 Vercel 환경 변수 탭에서 `.env.local`의 값을 동일하게 추가하세요.
 
 ---
 
-## 4. 프로젝트 구조
+## 프로젝트 구조
 
 ```
 poolscan/
 ├── app/
-│   ├── layout.tsx          ← Root layout (sidebar + topbar)
-│   ├── page.tsx            ← Dashboard
-│   ├── pools/page.tsx      ← Pool Manager
-│   ├── wallets/page.tsx    ← Wallet Manager
-│   └── tokens/page.tsx     ← Token Registry
+│   ├── layout.tsx              ← Root layout (Sidebar + Topbar + RefreshBar)
+│   ├── page.tsx                ← Dashboard
+│   ├── pools/
+│   │   ├── page.tsx            ← Pool Manager
+│   │   └── [address]/page.tsx  ← Pool Detail
+│   ├── wallets/
+│   │   ├── page.tsx            ← Wallet Manager
+│   │   └── [address]/page.tsx  ← Wallet Detail
+│   ├── tokens/page.tsx         ← Token Registry
+│   └── settings/page.tsx       ← Chain config (hidden menu, /settings)
 ├── components/
-│   ├── layout/             ← Sidebar, Topbar
-│   └── ui/                 ← Badge, TokenAvatar, PriceRangeBar …
+│   ├── layout/                 ← Sidebar, Topbar, RefreshBar
+│   ├── pools/                  ← AddPoolModal
+│   ├── search/                 ← SearchModal
+│   └── ui/                     ← Badge, TokenAvatar, PriceRangeBar
+├── context/
+│   └── AppContext.tsx           ← 전역 상태 (체인, 풀/지갑/토큰, 새로고침)
 ├── lib/
-│   ├── supabase.ts         ← DB CRUD 함수
-│   ├── types.ts            ← TypeScript 타입 정의
-│   └── utils.ts            ← 포맷터, 체인 설정, 유틸
-├── supabase/
-│   └── schema.sql          ← DB 스키마 (Supabase에 실행)
-└── .env.local.example      ← 환경변수 템플릿
+│   ├── db.ts                   ← localStorage CRUD (풀·지갑·토큰·설정)
+│   ├── blockchain.ts           ← Viem 온체인 조회 (풀 메타데이터, 토큰 정보)
+│   ├── types.ts                ← TypeScript 타입 정의
+│   └── utils.ts                ← 포맷터, 체인 설정, 유틸
+├── public/
+│   └── wemix-default-config.json  ← 기본 풀·토큰 목록 (가져오기 기본 데이터)
+└── .env.local                  ← RPC/Explorer/Contract 커스텀 (선택)
 ```
 
 ---
 
-## 5. 다음 단계 (로드맵)
+## 데이터 흐름
 
-- [ ] Wagmi + Viem으로 실제 온체인 데이터 읽기
-- [ ] Pool 컨트랙트에서 sqrtPriceX96 / tick / reserve 읽기
-- [ ] Wallet NFT 포지션 조회 (Uniswap V3 NonfungiblePositionManager)
-- [ ] The Graph 서브그래프 연동 (히스토리 데이터)
-- [ ] 체인별 Multicall 배치 최적화
+- **localStorage** 에 풀·지갑·토큰 주소 목록 저장 (`poolscan_pools`, `poolscan_wallets`, `poolscan_tokens`)
+- **캐시** (`poolscan-cache-v2-{chainId}`) 에 온체인 메타데이터(TVL, 가격, 유동성 등) 저장
+- **새로고침** 버튼 또는 체인 전환 시 온체인에서 최신 데이터 재조회
+- **내보내기** : 현재 등록된 풀·지갑·토큰을 JSON 파일로 다운로드
+- **가져오기** : JSON 파일 또는 기본 데이터(wemix-default-config.json)로 일괄 등록
+
+---
+
+## 숨겨진 메뉴
+
+- `/settings` — 체인별 RPC URL, Explorer, Gateway, NFPM, NFPH 주소 커스텀
+  사이드바에는 노출되지 않으며 URL 직접 접근으로만 진입 가능

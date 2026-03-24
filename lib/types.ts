@@ -2,14 +2,20 @@
 // PoolScan — Core Types
 // ============================================================
 
-export type ChainId = 1 | 137 | 42161 | 10 | 8453;
+export type ChainId = 1 | 137 | 42161 | 10 | 8453 | 1111 | 1112;
 
 export interface Chain {
   id:    ChainId;
   name:  string;
   color: string;
   icon:  string;
-  rpcEnvKey: string;
+  rpcUrl: string;
+  explorer: string;
+  nativeCurrency: { name: string; symbol: string; decimals: number };
+  gateways: string[];
+  nfpm?: string;
+  nfph?: string;
+  knownPoolAddresses?: { address: string; status: "a" | "i" }[];
 }
 
 // ── Supabase DB rows ────────────────────────────────────────
@@ -34,6 +40,7 @@ export interface DBPool {
   token0:     string;
   token1:     string;
   label:      string | null;
+  status:     "a" | "i";
 }
 
 export interface DBWallet {

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { RefreshBar } from "@/components/layout/RefreshBar";
+import { AppProvider } from "@/context/AppContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,16 +21,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        {/* Sidebar — fixed left */}
-        <Sidebar />
+        <AppProvider>
+          {/* Sidebar — fixed left */}
+          <Sidebar />
 
-        {/* Topbar — fixed top, offset by sidebar */}
-        <Topbar />
+          {/* Topbar — fixed top, offset by sidebar */}
+          <Topbar />
 
-        {/* Main content */}
-        <main className="ml-[210px] pt-[52px] min-h-screen">
-          <div className="px-8 py-7">{children}</div>
-        </main>
+          {/* Refresh progress bar — thin line just below topbar */}
+          <RefreshBar />
+
+          {/* Main content */}
+          <main className="ml-[220px] pt-[56px] min-h-screen">
+            <div className="px-8 py-7">{children}</div>
+          </main>
+        </AppProvider>
       </body>
     </html>
   );

@@ -13,8 +13,10 @@
   }
 
   body {
-    background-color: #F7F8FA;
+    background-color: #F5F6F8;
     color: #111827;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   input::placeholder {
