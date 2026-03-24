@@ -28,6 +28,8 @@ interface AppContextType {
   togglePoolStatus: (id: string, currentStatus?: string) => Promise<void>;
   removePool: (id: string) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
+  importDefaultData: () => Promise<void>;
+  isImportingDefault: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -284,6 +286,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error("Failed to delete wallet", e); }
   };
 
+  // 기본 데이터 가져오기 (어느 페이지에서든 호출 가능)
+  const [isImportingDefault, setIsImportingDefault] = useState(false);
+  const importDefaultData = useCallback(async () => {
+    if (isImportingDefault || isRefreshing) return;
+    setIsImportingDefault(true);
+    try {
+      const res = await fetch("/wemix-default-config.json");
+      if (!res.ok) throw new Error("기본 데이터를 불러올 수 없습니다.");
+      const json = await res.text();
+      const { importConfig } = await import("@/lib/db");
+      importConfig(json);
+      await refreshData();
+    } catch (e) {
+      console.error("importDefaultData failed:", e);
+    } finally {
+      setIsImportingDefault(false);
+    }
+  }, [isImportingDefault, isRefreshing, refreshData]);
+
   const activePools = pools.filter(p => (p.status === "a" || !p.status) && p.chain_id === chainId);
   const totalTVL = activePools.reduce((acc, p) => acc + (metadata[p.address.toLowerCase()]?.tvl || 0), 0);
 
@@ -299,6 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       chainId, setChainId, pools, wallets, tokens,
       isLoading, isRefreshing, refreshProgress, refreshPercent, lastUpdated,
       refreshData, metadata, summary, togglePoolStatus, removePool, removeWallet,
+      importDefaultData, isImportingDefault,
     }}>
       {children}
     </AppContext.Provider>

@@ -4,15 +4,20 @@ import React, { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
 import { fmtFull, fmtFullUSD, downloadCSV, getChain } from "@/lib/utils";
-import { Download, ChevronDown, ExternalLink, Trash2 } from "lucide-react";
+import { Download, ChevronDown, ExternalLink, Trash2, Power, ArrowLeftRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function PoolsPage() {
-  const { pools, tokens, chainId, isLoading, isRefreshing, lastUpdated, togglePoolStatus, removePool, metadata } = useApp();
+  const { pools, tokens, chainId, isLoading, togglePoolStatus, removePool, metadata } = useApp();
   const chain = getChain(chainId);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [showInactive, setShowInactive] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  // pool.id → true이면 reverse (Token1 기준)
+  const [reversedRates, setReversedRates] = useState<Set<string>>(new Set());
+  const toggleRate = (id: string) =>
+    setReversedRates(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const currentPools = pools.filter(p => p.chain_id === chainId);
   const activePools = currentPools.filter(p => p.status === "a" || !p.status);
@@ -155,129 +160,151 @@ export default function PoolsPage() {
           </label>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 w-10 text-center">#</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500">Pool</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">Exchange Rate</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">Token 0</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">Token 1</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">TVL</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-center w-28">상태</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedPools.map((pool, idx) => {
-                const meta = metadata[pool.address.toLowerCase()];
-                const prices0 = Number(tokenPrices[meta?.token0?.toLowerCase()] || 0);
-                const prices1 = Number(tokenPrices[meta?.token1?.toLowerCase()] || 0);
-                const a0 = Number(meta?.t0Amt || 0);
-                const a1 = Number(meta?.t1Amt || 0);
-                const isInactive = pool.status === "i";
+        {/* 스크롤 엣지 페이드 래퍼 */}
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[820px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="pl-5 pr-3 py-3 text-[11px] font-medium text-gray-500 w-8 text-center">#</th>
+                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500">Pool</th>
+                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Exchange Rate</th>
+                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Token 0</th>
+                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Token 1</th>
+                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">TVL</th>
+                  <th className="pl-3 pr-5 py-3 text-[11px] font-medium text-gray-500 w-24 text-right"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedPools.map((pool, idx) => {
+                  const meta = metadata[pool.address.toLowerCase()];
+                  const prices0 = Number(tokenPrices[meta?.token0?.toLowerCase()] || 0);
+                  const prices1 = Number(tokenPrices[meta?.token1?.toLowerCase()] || 0);
+                  const a0 = Number(meta?.t0Amt || 0);
+                  const a1 = Number(meta?.t1Amt || 0);
+                  const isInactive = pool.status === "i";
 
-                return (
-                  <tr key={pool.id} className={"border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors " + (isInactive ? "opacity-50" : "")}>
-                    <td className="px-5 py-4 text-[12px] text-gray-400 text-center">{idx + 1}</td>
-                    <td className="px-5 py-4">
-                      {meta?.isValid ? (
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          <span className="text-sm font-medium text-gray-900">
-                            {meta.symbol0} / {meta.symbol1}
-                          </span>
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 ${meta.type === "v3" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-700"}`}>
-                            {meta.type?.toUpperCase()}
-                          </span>
-                          <span className="text-[11px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded shrink-0">{meta.fee}%</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400 font-mono">{pool.address.slice(0, 10)}…</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{meta?.isValid ? fmtFull(meta.price, 4) : "—"}</span>
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">/ 1 {meta?.symbol0}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a0, 2)}</span>
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a0 * prices0)}</span>
-                        <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol0}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a1, 2)}</span>
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a1 * prices1)}</span>
-                        <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol1}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="text-sm font-semibold text-gray-900">{meta?.isValid ? fmtFullUSD(meta.tvl) : "—"}</div>
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => togglePoolStatus(pool.id, pool.status)}
-                        className={"text-[12px] font-medium px-3 py-1 rounded-md border transition-colors whitespace-nowrap " + (isInactive
-                          ? "border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                          : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"
-                        )}
-                      >
-                        {isInactive ? "활성화" : "비활성"}
-                      </button>
-                    </td>
-                    {/* Explorer + Delete */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <a
-                          href={`${chain.explorer.replace(/\/$/, "")}/address/${pool.address}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Explorer"
-                        >
-                          <ExternalLink size={13} />
-                        </a>
-                        {confirmDelete === pool.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { removePool(pool.id); setConfirmDelete(null); }}
-                              className="text-[11px] font-medium px-2 py-0.5 rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
-                            >
-                              삭제
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              className="text-[11px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                            >
-                              취소
-                            </button>
+                  return (
+                    <tr key={pool.id} className={"border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors " + (isInactive ? "opacity-40" : "")}>
+                      <td className="pl-5 pr-3 py-3.5 text-[12px] text-gray-400 text-center">{idx + 1}</td>
+                      <td className="px-3 py-3.5">
+                        {meta?.isValid ? (
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            <span className="text-sm font-medium text-gray-900">
+                              {meta.symbol0} / {meta.symbol1}
+                            </span>
+                            <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 ${meta.type === "v3" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-700"}`}>
+                              {meta.type?.toUpperCase()}
+                            </span>
+                            <span className="text-[11px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded shrink-0">{meta.fee}%</span>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setConfirmDelete(pool.id)}
-                            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="삭제"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          <span className="text-sm text-gray-400 font-mono">{pool.address.slice(0, 10)}…</span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {displayedPools.length === 0 && (
-            <div className="flex items-center justify-center h-40 text-sm text-gray-400">
-              {isLoading ? "로딩 중…" : isRefreshing ? "새로고침 중…" : !lastUpdated ? "사이드바에서 새로고침을 눌러주세요" : "등록된 풀이 없습니다"}
-            </div>
-          )}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        {meta?.isValid ? (() => {
+                          const isReversed = reversedRates.has(pool.id);
+                          const rate = isReversed
+                            ? (Number(meta.price) !== 0 ? fmtFull(1 / Number(meta.price), 4) : "—")
+                            : fmtFull(meta.price, 4);
+                          const base = isReversed ? meta.symbol1 : meta.symbol0;
+                          return (
+                            <button
+                              onClick={() => toggleRate(pool.id)}
+                              className="flex items-center justify-end gap-1.5 w-full group"
+                              title="클릭해서 반전"
+                            >
+                              <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{rate}</span>
+                              <span className="text-[11px] text-gray-400 whitespace-nowrap">/ 1 {base}</span>
+                              <ArrowLeftRight size={11} className="text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
+                            </button>
+                          );
+                        })() : (
+                          <div className="text-sm text-gray-300 text-right">—</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a0, 2)}</span>
+                          <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a0 * prices0)}</span>
+                          <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol0}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a1, 2)}</span>
+                          <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a1 * prices1)}</span>
+                          <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol1}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <span className="text-sm font-semibold text-gray-900">{meta?.isValid ? fmtFullUSD(meta.tvl) : "—"}</span>
+                      </td>
+                      {/* Power(toggle) + Explorer + Delete */}
+                      <td className="pl-3 pr-5 py-3.5">
+                        <div className="flex items-center justify-end gap-0.5">
+                          {/* 활성/비활성 토글 */}
+                          <button
+                            onClick={() => togglePoolStatus(pool.id, pool.status)}
+                            title={isInactive ? "활성화" : "비활성화"}
+                            className={[
+                              "w-7 h-7 flex items-center justify-center rounded-lg transition-colors",
+                              isInactive
+                                ? "text-gray-300 hover:text-emerald-500 hover:bg-emerald-50"
+                                : "text-emerald-500 hover:text-gray-400 hover:bg-gray-100",
+                            ].join(" ")}
+                          >
+                            <Power size={13} />
+                          </button>
+
+                          {/* Explorer */}
+                          <a
+                            href={`${chain.explorer.replace(/\/$/, "")}/address/${pool.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Explorer"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+
+                          {/* Delete */}
+                          {confirmDelete === pool.id ? (
+                            <div className="flex items-center gap-1 ml-0.5">
+                              <button
+                                onClick={() => { removePool(pool.id); setConfirmDelete(null); }}
+                                className="text-[11px] font-medium px-2 py-0.5 rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              >
+                                삭제
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="text-[11px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete(pool.id)}
+                              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="삭제"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {displayedPools.length === 0 && (
+              <EmptyState message="등록된 풀이 없습니다" height="h-40" />
+            )}
+          </div>
         </div>
       </div>
     </div>

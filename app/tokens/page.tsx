@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
 import { fmtFull, CHAINS } from "@/lib/utils";
 import { Loader2, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function TokensPage() {
   const { tokens, pools, chainId, isLoading, metadata } = useApp();
@@ -111,9 +112,7 @@ export default function TokensPage() {
             </tbody>
           </table>
         ) : (
-          <div className="flex items-center justify-center h-48 text-sm text-gray-400">
-            {isLoading ? "로딩 중…" : "등록된 토큰이 없습니다"}
-          </div>
+          <EmptyState message="등록된 토큰이 없습니다" height="h-48" />
         )}
       </div>
     </div>

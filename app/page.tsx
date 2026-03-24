@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { fmtFullUSD, fmtUSD } from "@/lib/utils";
 import { Layers, Wallet, DollarSign, TrendingUp, ArrowRight, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // 값이 길면 자동 축약, 짧으면 풀 표기 (숫자 기반 분기)
 function smartFmtUSD(n: number): { short: string; full: string } {
@@ -12,7 +13,7 @@ function smartFmtUSD(n: number): { short: string; full: string } {
 }
 
 export default function DashboardPage() {
-  const { pools, wallets, chainId, isLoading, isRefreshing, lastUpdated, summary, metadata } = useApp();
+  const { pools, wallets, chainId, isLoading, summary, metadata } = useApp();
 
   const currentPools = pools.filter(p => p.chain_id === chainId && (p.status === "a" || !p.status));
   const currentWallets = wallets.filter(w => w.chain_id === chainId);
@@ -130,9 +131,7 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-48 text-sm text-gray-400">
-              {isLoading ? "로딩 중…" : isRefreshing ? "새로고침 중…" : !lastUpdated ? "사이드바에서 새로고침을 눌러주세요" : "등록된 풀이 없습니다"}
-            </div>
+            <EmptyState message="등록된 풀이 없습니다" height="h-48" />
           )}
         </div>
 
@@ -166,7 +165,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 text-sm text-gray-400">
-              {isLoading ? "로딩 중…" : "등록된 지갑이 없습니다"}
+              등록된 지갑이 없습니다
             </div>
           )}
         </div>
