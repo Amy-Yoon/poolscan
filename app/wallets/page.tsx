@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { getWalletLPPositions, fetchTokenPrices } from "@/lib/blockchain";
-import { downloadCSV, fmtAmt, fmtRate, fmtFullUSD } from "@/lib/utils";
-import { Loader2, ChevronDown, ChevronRight, Download, ArrowLeftRight, Trash2 } from "lucide-react";
+import { downloadCSV, fmtAmt, fmtRate, fmtFullUSD, getChain } from "@/lib/utils";
+import { Loader2, ChevronDown, ChevronRight, Download, ArrowLeftRight, Trash2, ExternalLink } from "lucide-react";
 
 /** Extreme range boundary → ∞ / 0 */
 const fmtPrice = (n: number): string => {
@@ -60,6 +60,7 @@ interface WalletSummary {
 
 export default function WalletsPage() {
   const { wallets, chainId, pools, tokens, metadata, isLoading, removeWallet } = useApp();
+  const chain = getChain(chainId);
   const [summaries, setSummaries] = useState<Record<string, WalletSummary>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // tokenId → true means show reversed price (sym1 per sym0 → sym0 per sym1)
@@ -256,7 +257,7 @@ export default function WalletsPage() {
               <col style={{ width: "56px" }} />   {/* V3 */}
               <col style={{ width: "80px" }} />   {/* 총 포지션 */}
               <col style={{ width: "136px" }} />  {/* Total Value */}
-              <col style={{ width: "76px" }} />   {/* actions */}
+              <col style={{ width: "100px" }} />  {/* actions */}
             </colgroup>
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -358,6 +359,15 @@ export default function WalletsPage() {
                               <Download size={13} />
                             </button>
                           )}
+                          <a
+                            href={`${chain.explorer.replace(/\/$/, "")}/address/${wallet.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Explorer"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
                           <button
                             onClick={() => {
                               if (confirm(`Remove wallet "${wallet.label}"?`)) {
