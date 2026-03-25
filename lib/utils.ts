@@ -172,7 +172,7 @@ export const fmtAmt = (n: any): string => {
   const abs = Math.abs(val);
   if (abs >= 1000) return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(val));
   if (abs >= 1)    return val.toFixed(2);
-  return stripZeros(val.toFixed(8));
+  return stripZeros(val.toFixed(4));
 };
 
 /**
