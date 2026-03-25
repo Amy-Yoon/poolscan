@@ -6,13 +6,51 @@
  *   Token  → address, chain_id, price (fixed price override; null = use oracle)
  *
  * All metadata (symbol, name, decimals, fee, type, token0/token1…)
- * is fetched on-chain at runtime and never persisted here.
+ * is fetched on-chain at runtime and NEVER persisted here.
+ *
+ * export/import format (version 3):
+ *   - pools:   [{ address, chain_id, status }]
+ *   - wallets: [{ address, chain_id, label }]
+ *   - tokens:  NOT included (auto-discovered from pool metadata at runtime)
  *
  * Use exportConfig / importConfig for cross-device backup/restore.
  */
 import type { DBPool, DBWallet, DBToken } from "./types";
 
 // ── Storage helpers ───────────────────────────────────────────
+
+/** 앱 시작 시 1회 실행 — 구버전 localStorage 데이터 정리 */
+export function migrateStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    // Pool: 구버전에 type/fee/token0/token1/label 등이 남아있으면 제거
+    const rawPools = localStorage.getItem("poolscan_pools");
+    if (rawPools) {
+      const pools = JSON.parse(rawPools) as any[];
+      const cleaned = pools.map((p: any) => ({
+        id:         p.id,
+        created_at: p.created_at,
+        address:    p.address,
+        chain_id:   p.chain_id,
+        status:     p.status ?? "a",
+      }));
+      localStorage.setItem("poolscan_pools", JSON.stringify(cleaned));
+    }
+    // Token: 구버전에 symbol/name/decimals가 있으면 제거
+    const rawTokens = localStorage.getItem("poolscan_tokens");
+    if (rawTokens) {
+      const tokens = JSON.parse(rawTokens) as any[];
+      const cleaned = tokens.map((t: any) => ({
+        id:         t.id,
+        created_at: t.created_at,
+        address:    t.address,
+        chain_id:   t.chain_id,
+        price:      t.price ?? null,
+      }));
+      localStorage.setItem("poolscan_tokens", JSON.stringify(cleaned));
+    }
+  } catch { /* 무시 */ }
+}
 
 function getItem<T>(key: string, defaultValue: T): T {
   if (typeof window === "undefined") return defaultValue;
@@ -124,29 +162,24 @@ export async function deleteToken(id: string): Promise<void> {
 
 // ── Config export / import ────────────────────────────────────
 
-/** Download current config as a JSON file — only minimal identifiers */
+/** Download current config as a JSON file — pools + wallets only.
+ *  Tokens are NOT exported — they are auto-discovered from pool metadata at runtime. */
 export function exportConfig(): void {
-  const allPools   = getItem<DBPool[]>("pools", []);
+  const allPools   = getItem<any[]>("pools", []);
   const allWallets = getItem<DBWallet[]>("wallets", []);
-  const allTokens  = getItem<DBToken[]>("tokens", []);
 
   const config = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
-    pools: allPools.map(p => ({
+    pools: allPools.map((p: any) => ({
       address:  p.address,
       chain_id: p.chain_id,
-      status:   p.status,
+      status:   p.status ?? "a",
     })),
     wallets: allWallets.map(w => ({
       address:  w.address,
       chain_id: w.chain_id,
       label:    w.label,
-    })),
-    tokens: allTokens.map(t => ({
-      address:  t.address,
-      chain_id: t.chain_id,
-      price:    t.price,
     })),
   };
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
@@ -159,18 +192,18 @@ export function exportConfig(): void {
 }
 
 /** Restore config from a JSON file.
- *  Handles v1 (with type/fee/token0/token1/symbol/decimals) and v2 (minimal) formats. */
-export function importConfig(json: string): { pools: number; wallets: number; tokens: number } {
+ *  Handles v1/v2 (legacy with extra fields) and v3 (clean — pools+wallets only). */
+export function importConfig(json: string): { pools: number; wallets: number } {
   const config = JSON.parse(json);
-  if (config.version !== 1 && config.version !== 2) throw new Error("Unsupported config version");
+  if (![1, 2, 3].includes(config.version)) throw new Error("Unsupported config version");
 
   const now = new Date().toISOString();
   const uid = () => Math.random().toString(36).slice(2, 9);
 
-  // Pools — accept both v1 (with extra fields) and v2 (address+chain_id+status only)
-  const existingPools = getItem<DBPool[]>("pools", []);
+  // Pools — strip all extra fields, only keep address/chain_id/status
+  const existingPools = getItem<any[]>("pools", []);
   const newPools = (config.pools ?? [])
-    .filter((p: any) => !existingPools.some((e: DBPool) =>
+    .filter((p: any) => !existingPools.some((e: any) =>
       e.address.toLowerCase() === p.address.toLowerCase() && e.chain_id === p.chain_id
     ))
     .map((p: any): DBPool => ({
@@ -197,20 +230,7 @@ export function importConfig(json: string): { pools: number; wallets: number; to
     }));
   setItem("wallets", [...newWallets, ...existingWallets]);
 
-  // Tokens — v1 had symbol/name/decimals (ignored now); v2 has price only
-  const existingTokens = getItem<DBToken[]>("tokens", []);
-  const newTokens = (config.tokens ?? [])
-    .filter((t: any) => !existingTokens.some((e: DBToken) =>
-      e.address.toLowerCase() === t.address.toLowerCase() && e.chain_id === t.chain_id
-    ))
-    .map((t: any): DBToken => ({
-      id:         uid(),
-      created_at: now,
-      address:    t.address,
-      chain_id:   t.chain_id,
-      price:      t.price ?? null,
-    }));
-  setItem("tokens", [...newTokens, ...existingTokens]);
+  // Tokens: NOT imported — auto-discovered from pool metadata via refreshData()
 
-  return { pools: newPools.length, wallets: newWallets.length, tokens: newTokens.length };
+  return { pools: newPools.length, wallets: newWallets.length };
 }

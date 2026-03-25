@@ -52,8 +52,8 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const applyImport = async (json: string) => {
     setIsImporting(true);
     try {
-      const { pools: p, wallets: w, tokens: t } = importConfig(json);
-      showToast("success", `Import complete — Pools +${p} / Wallets +${w} / Tokens +${t}`);
+      const { pools: p, wallets: w } = importConfig(json);
+      showToast("success", `Import complete — Pools +${p} / Wallets +${w}`);
       await refreshData();
     } catch (err) {
       showToast("error", "Import failed: " + (err as Error).message);

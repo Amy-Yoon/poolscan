@@ -122,69 +122,71 @@ export default function PoolDetailPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-start sm:items-center gap-2 mb-7 flex-wrap">
-        {/* 뒤로가기 */}
-        <button
-          onClick={() => router.back()}
-          className="h-9 w-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
-        >
-          <ArrowLeft size={15} className="text-gray-500" />
-        </button>
-
-        {/* 풀 제목 + 배지 */}
-        <div className="h-9 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-            {data.token0.symbol} / {data.token1.symbol}
-          </span>
-          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${data.type === "v3" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-700"}`}>
-            {data.type?.toUpperCase()}
-          </span>
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-            {data.fee}%
-          </span>
-          {dbPool && (
-            <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${dbPool.status === "i" ? "bg-gray-100 text-gray-400" : "bg-emerald-50 text-emerald-700"}`}>
-              {dbPool.status === "i" ? "Inactive" : "Active"}
-            </span>
-          )}
-        </div>
-
-        {/* 컨트랙트 주소 */}
-        <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-[11px] text-gray-400">Contract</span>
-          <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">
-            {data.address.slice(0, 6)}…{data.address.slice(-6)}
-          </span>
-        </div>
-
-        {/* 우측 액션 버튼들 */}
-        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
-          {dbPool && (
-            <button
-              onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
-              className="h-9 px-3 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
-            >
-              {dbPool.status === "i" ? "Activate" : "Set Inactive"}
-            </button>
-          )}
-          <a
-            href={`${chain.explorer}address/${address}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-9 px-3 flex items-center gap-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+      {/* Header — 2-row layout: always predictable on mobile & desktop */}
+      <div className="mb-7 space-y-2">
+        {/* Row 1: back ← + pool title + badges */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.back()}
+            className="h-9 w-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
           >
-            Explorer <ExternalLink size={12} />
-          </a>
-          {dbPool && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="h-9 w-9 flex items-center justify-center bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete pool"
+            <ArrowLeft size={15} className="text-gray-500" />
+          </button>
+
+          <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 flex-1 min-w-0 overflow-hidden">
+            <span className="text-sm font-semibold text-gray-900 whitespace-nowrap truncate">
+              {data.token0.symbol} / {data.token1.symbol}
+            </span>
+            <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 ${data.type === "v3" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-700"}`}>
+              {data.type?.toUpperCase()}
+            </span>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+              {data.fee}%
+            </span>
+            {dbPool && (
+              <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 ${dbPool.status === "i" ? "bg-gray-100 text-gray-400" : "bg-emerald-50 text-emerald-700"}`}>
+                {dbPool.status === "i" ? "Inactive" : "Active"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: contract address (left) + action buttons (right) — always full-width */}
+        <div className="flex items-center gap-2">
+          <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 min-w-0 overflow-hidden">
+            <span className="text-[11px] text-gray-400 shrink-0">Contract</span>
+            <span className="text-[12px] font-mono text-gray-600 truncate">
+              {data.address.slice(0, 6)}…{data.address.slice(-6)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {dbPool && (
+              <button
+                onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
+                className="h-9 px-3 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
+              >
+                {dbPool.status === "i" ? "Activate" : "Set Inactive"}
+              </button>
+            )}
+            <a
+              href={`${chain.explorer}address/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-9 px-3 flex items-center gap-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
             >
-              <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
-            </button>
-          )}
+              Explorer <ExternalLink size={12} />
+            </a>
+            {dbPool && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="h-9 w-9 flex items-center justify-center bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                title="Delete pool"
+              >
+                <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

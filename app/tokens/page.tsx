@@ -4,14 +4,17 @@ import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
 import { fmtTokenPrice, CHAINS, downloadCSV } from "@/lib/utils";
-import { Loader2, ExternalLink, Download } from "lucide-react";
+import { Loader2, ExternalLink, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
+
+type SortDir = "none" | "asc" | "desc";
 
 export default function TokensPage() {
   const { tokens, pools, chainId, metadata, tokenMetadata } = useApp();
   const explorerUrl = CHAINS.find(c => c.id === chainId)?.explorer || "";
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+  const [priceSortDir, setPriceSortDir] = useState<SortDir>("none");
 
   const currentTokens = tokens.filter(t => t.chain_id === chainId);
 
@@ -46,6 +49,21 @@ export default function TokensPage() {
     const p = prices[addr.toLowerCase()];
     return p && Number(p) > 0 ? p : null;
   };
+
+  const togglePriceSort = () => {
+    setPriceSortDir(prev =>
+      prev === "none" ? "desc" : prev === "desc" ? "asc" : "none"
+    );
+  };
+
+  const sortedTokens = React.useMemo(() => {
+    if (priceSortDir === "none") return currentTokens;
+    return [...currentTokens].sort((a, b) => {
+      const pa = Number(prices[a.address.toLowerCase()] ?? 0);
+      const pb = Number(prices[b.address.toLowerCase()] ?? 0);
+      return priceSortDir === "asc" ? pa - pb : pb - pa;
+    });
+  }, [currentTokens, prices, priceSortDir]);
 
   const handleExport = () => {
     const rows: (string | number)[][] = [
@@ -97,13 +115,23 @@ export default function TokensPage() {
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 w-10 text-center">#</th>
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500">Symbol / Name</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">Price (USD)</th>
+                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">
+                  <button
+                    onClick={togglePriceSort}
+                    className="inline-flex items-center gap-1 ml-auto hover:text-gray-800 transition-colors"
+                  >
+                    Price (USD)
+                    {priceSortDir === "none" && <ArrowUpDown size={11} className="text-gray-300" />}
+                    {priceSortDir === "desc" && <ArrowDown size={11} className="text-blue-500" />}
+                    {priceSortDir === "asc" && <ArrowUp size={11} className="text-blue-500" />}
+                  </button>
+                </th>
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-center">Decimals</th>
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-center">Explorer</th>
               </tr>
             </thead>
             <tbody>
-              {currentTokens.map((token, idx) => {
+              {sortedTokens.map((token, idx) => {
                 const meta = tokenMetadata[token.address.toLowerCase()];
                 const price = getPrice(token.address);
                 return (

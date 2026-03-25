@@ -49,7 +49,8 @@ export function getEffectiveChain(chainId: number): Chain {
 export function getClient(chainId: number) {
   const chain = getEffectiveChain(chainId);
   const rpcUrl = chain?.rpcUrl || "https://api.wemix.com/";
-  return createPublicClient({ transport: http(rpcUrl) });
+  // testnet RPC 가 느릴 수 있으므로 timeout 30s 로 설정
+  return createPublicClient({ transport: http(rpcUrl, { timeout: 30_000 }) });
 }
 
 export type AddressType = "token" | "pool_v2" | "pool_v3" | "wallet" | "unknown";
@@ -376,6 +377,7 @@ async function fetchSinglePoolMeta(addr: string, client: ReturnType<typeof getCl
     return {
       address: addr, symbol0: sym0, symbol1: sym1,
       token0: t0, token1: t1,
+      dec0: dec0 as number, dec1: dec1 as number,
       fee, isValid: true, type: poolType,
       t0Amt, t1Amt, price, tvl,
     };
@@ -388,13 +390,17 @@ async function fetchSinglePoolMeta(addr: string, client: ReturnType<typeof getCl
 export async function fetchPoolsMetadata(addresses: string[], chainId: number) {
   const client = getClient(chainId);
   const chain = getEffectiveChain(chainId);
-  const BATCH_SIZE = 8;
+  // testnet RPC 가 느리므로 배치 크기를 줄이고 allSettled 로 부분 실패 허용
+  const BATCH_SIZE = chainId === 1112 ? 4 : 8;
   const results: any[] = [];
 
   for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
     const batch = addresses.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(batch.map(addr => fetchSinglePoolMeta(addr, client, chain)));
-    results.push(...batchResults);
+    const settled = await Promise.allSettled(batch.map(addr => fetchSinglePoolMeta(addr, client, chain)));
+    settled.forEach(r => {
+      if (r.status === "fulfilled") results.push(r.value);
+      // 실패한 항목은 건너뜀 (null 대신 skip)
+    });
   }
   return results;
 }

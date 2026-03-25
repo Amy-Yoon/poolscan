@@ -62,6 +62,18 @@ export default function PoolsPage() {
     loadPrices();
   }, [chainId, metadata]);
 
+  // TVL fallback: gateway가 0을 반환했을 때 token amount × price 로 계산
+  const getEffectiveTVL = (meta: any): number => {
+    const gwTVL = Number(meta?.tvl || 0);
+    if (gwTVL > 0) return gwTVL;
+    if (!meta?.isValid) return 0;
+    const t0Price = Number(tokenPrices[meta.token0?.toLowerCase()] || 0);
+    const t1Price = Number(tokenPrices[meta.token1?.toLowerCase()] || 0);
+    const t0Val = Number(meta.t0Amt || 0) * t0Price;
+    const t1Val = Number(meta.t1Amt || 0) * t1Price;
+    return t0Val + t1Val;
+  };
+
   const aggregates = useMemo(() => {
     const tokenMap: Record<string, { symbol: string; amount: number; value: number }> = {};
     let totalTVL = 0;
@@ -69,7 +81,7 @@ export default function PoolsPage() {
     activePools.forEach(pool => {
       const meta = metadata[pool.address.toLowerCase()];
       if (!meta?.isValid) return;
-      const tvl = Number(meta.tvl || 0);
+      const tvl = getEffectiveTVL(meta);
       if (isFinite(tvl) && tvl < SANE) totalTVL += tvl;
       const t0Addr = meta.token0.toLowerCase();
       const t0Amt = Number(meta.t0Amt); const t0Price = Number(tokenPrices[t0Addr] || 0);
@@ -128,7 +140,7 @@ export default function PoolsPage() {
         meta?.isValid && t1Price ? a1 * t1Price : "",
         rate !== null ? rate : "",
         rate !== null && rate !== 0 ? 1 / rate : "",
-        meta?.isValid ? (meta.tvl ?? "") : "",
+        meta?.isValid ? getEffectiveTVL(meta) : "",
         p.status === "i" ? "inactive" : "active",
       ]);
     });
@@ -169,7 +181,7 @@ export default function PoolsPage() {
           const nb = mb?.isValid ? `${mb.symbol0}/${mb.symbol1}` : b.address;
           return sortDir === "asc" ? na.localeCompare(nb) : nb.localeCompare(na);
         }
-        if (sortKey === "tvl") { va = Number(ma?.tvl || 0); vb = Number(mb?.tvl || 0); }
+        if (sortKey === "tvl") { va = getEffectiveTVL(ma); vb = getEffectiveTVL(mb); }
         if (sortKey === "rate") { va = Number(ma?.price || 0); vb = Number(mb?.price || 0); }
         if (sortKey === "token0") { va = Number(ma?.t0Amt || 0); vb = Number(mb?.t0Amt || 0); }
         if (sortKey === "token1") { va = Number(ma?.t1Amt || 0); vb = Number(mb?.t1Amt || 0); }
@@ -417,7 +429,7 @@ export default function PoolsPage() {
                         </div>
                       </td>
                       <td className="px-3 py-3.5 text-right">
-                        <span className="text-sm font-semibold text-gray-900">{meta?.isValid ? fmtFullUSD(meta.tvl) : "—"}</span>
+                        <span className="text-sm font-semibold text-gray-900">{meta?.isValid ? fmtFullUSD(getEffectiveTVL(meta)) : "—"}</span>
                       </td>
                       <td className="pl-3 pr-5 py-3.5">
                         <div className="flex items-center justify-end gap-0.5">

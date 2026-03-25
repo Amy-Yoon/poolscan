@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "exportedAt": "2026-03-24T00:00:00.000Z",
+  "version": 2,
+  "exportedAt": "2026-03-25T00:00:00.000Z",
   "description": "WEMIX 기본 풀/토큰 목록. 가져오기 후 새로고침 버튼을 눌러 온체인 메타데이터를 채워주세요.",
   "pools": [
     {
@@ -220,6 +220,141 @@
     },
     {
       "address": "0x15A28bBaadde3db167208314359E25701f5b31aA",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x00caEc2e118AbC4c510440A8D1ac8565Fec0180C",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x59b51516032241b796de4e495A90030C2d48BD1e",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x1d8f7368F7C9D29EB041fc6e1736D28a11E454D0",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x9fBA0E50C6a0164EDC715Ac9ADFf9272F9eE379e",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x2201439f6c7AC081f6A0c5f3A813B217222c8202",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xDAa1A1eA136aa1966f23CE83B83eb4aC01097C4a",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x459D6B37c9706fBA0Aa4EB327Dc1391CD817e78f",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xBBf81687F4cecf909eB58c836f4A00F9D4CA9e67",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x620628eFeb57f50e3d133f6236b4933Bf40E3458",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xB418dDEBA58145fbE0E8D6c4a574CB62994eedaB",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xB609F53a5eE06110B843954f0742698736DfB1C0",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x610e5B63B4ffB4dbFCA77096678a988F6dAad3E4",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x8A09B18BDff44AcdE3516847D679D4b044cDfb89",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xE694a9E646d690b3098D303175D4BA19B181CF43",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x79219fa3De6E9b29A5dE4e6DACE014564FD46Faf",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x5cdea17A1d541205D70C6e05B317e242CA099cd3",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x0BE222ccD60B1af556aa4EB8CD075Ba9142ae29B",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xd86B2605E9F996D5F425C24b11EE18A72aF26404",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xeCF2971544FF21900E40E3cB9f04097959a5F908",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x74e4999c46925ec096909CF9574b8CD10e3d7990",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xc8423Ee51a2Ef7688EE0505b53EdC83a1d7F13Bd",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0xCB268e522e96463a40dB3E8fBF58Cf4Eb5B80810",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x77Dd7AB75b3c44e8c90C169ADf0D42C5cA84fd80",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x257480127dC7D3Afd2464A134316de2CE5397Ad3",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x90d69f92D515A414256f5544442B0622E5688459",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x4f06949b3791a2bcf4726cfc907ae8e9dc89ec80",
+      "chain_id": 1111,
+      "status": "i"
+    },
+    {
+      "address": "0x42Cf1Af7Fa9c2b50855A47806706D623De73316b",
       "chain_id": 1111,
       "status": "i"
     },
@@ -444,180 +579,139 @@
       "status": "i"
     },
     {
+      "address": "0xe6655CCda10e28e23Eb067C85ec1A8F1A39847Fd",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x35FD50573A3Fe86A0bB135E067545798070F078a",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x66C290EF80a6c8C8b35e0FFbe27F867AA6567958",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x854859952f2c307219d5B53dc2b06b0Af9c8CE3C",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x288333A256E802aa2B97dA36fEA5561d5Ef64A5C",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0xEa66f07EEa8d9D835DeDd90C2b177d1FE498bE13",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x96096455342208bE7Cf7a203c47388338Fd01c2B",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x1FbEC1C79B22A5A0b9566d7556D9D0B713300a58",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x111239FeC38707088B9EEe636666250B4B73ea41",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x08A29B19Bc3D6303CBe86008a9fdCbEa2027a55F",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0xC56cEa8FAe5B9CF6D61Dc479Dca0eb2A0aDe2Ff9",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x784000E17BD910C165e43A40eF48613ca6A287b4",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x8432913373C8Fa7591D77436cdd73CAeDC031bFe",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
+      "address": "0x6d1FC3a61F3f5ca1f113a6FAF86fE37A69Bbbc4d",
+      "chain_id": 1112,
+      "status": "i"
+    },
+    {
       "address": "0x5fdbf06C4865EE2fF30FA58a3778B6233f9fB0CF",
       "chain_id": 1112,
       "status": "i"
-    }
-  ],
-  "wallets": [],
-  "tokens": [
-    {
-      "address": "0x7D72b22a74A216Af4a002a1095C8C707d6eC1C5f",
-      "chain_id": 1111
     },
     {
-      "address": "0x9B377bd7Db130E8bD2f3641E0E161cB613DA93De",
-      "chain_id": 1111
+      "address": "0xfb9A8048f39B10B2D35c6f2bd66e2701B14a0e5C",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x0D01107F773A0754a3A4125D7B98E2fF707d7289",
-      "chain_id": 1111
+      "address": "0x0c8526D6d26b0f4d532B19E66A9628C92afc4BC4",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x44bb111010dfffb3695f9a1b66aa879976199e7b",
-      "chain_id": 1111
+      "address": "0x3A5a104CB7b7764D2E6742B65fc2a7C57cF52382",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x2ec6Fc5c495aF0C439E17268d595286d5f897dD0",
-      "chain_id": 1111
+      "address": "0x97B76703A2Eb5706f00502F710A02Cd502a0d0e5",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x8E81fCc2d4A3bAa0eE9044E0D7E36F59C9BbA9c1",
-      "chain_id": 1111
+      "address": "0xA3D9Bb0C47046dF4d761Cd4C5f1A0f49d9ad79b8",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x70f1F317697337d297F5338d3dD72a6C4C51BDE1",
-      "chain_id": 1111
+      "address": "0x046E12995ad9a46c453FE8958903e6232f89dbc5",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x58083B54013631BaCc0bbB6d4efa543Fee1D9cE0",
-      "chain_id": 1111
+      "address": "0xfFB849f84923A0EF41f84E69e88C8274e430223f",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0xE4c2b5db9de5da0A17ED7ec7176602ad99E52624",
-      "chain_id": 1111
+      "address": "0x41bf7A11645D126698228203453b5116Eda301A9",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D",
-      "chain_id": 1111
+      "address": "0xcF199238293EA1D07B386AB16e1be96Fb7EDb421",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0xBd11F630B0ba8D944dAb0d1feD6ad4fc41a619aa",
-      "chain_id": 1111
+      "address": "0xD4cAF22F770a803795331e28bf023adB95054704",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x531e6Abe1ad0c8313ad7c8f7ad96b8e70c56164E",
-      "chain_id": 1111
+      "address": "0xc2CABbe5cf1422D740bD2BE580e7B26078dFA956",
+      "chain_id": 1112,
+      "status": "i"
     },
     {
-      "address": "0x770D9D14C4AE2f78dCa810958C1D9b7Ea4620289",
-      "chain_id": 1111
-    },
-    {
-      "address": "0x2B58644b9f210ebB8fBF4C27066f9d1d97B03CBc",
-      "chain_id": 1111
-    },
-    {
-      "address": "0x461d52769884ca6235B685EF2040F47d30C94EB5",
-      "chain_id": 1111
-    },
-    {
-      "address": "0x2C78f1b70Ccf63CDEe49F9233e9fAa99D43AA07e",
-      "chain_id": 1111
-    },
-    {
-      "address": "0x765277EebeCA2e31912C9946eAe1021199B39C61",
-      "chain_id": 1111
-    },
-    {
-      "address": "0xC1Be9a4D5D45BeeACAE296a7BD5fADBfc14602C4",
-      "chain_id": 1111
-    },
-    {
-      "address": "0xA649325Aa7C5093d12D6F98EB4378deAe68CE23F",
-      "chain_id": 1111
-    },
-    {
-      "address": "0xe6801928061CDbE32AC5AD0634427E140EFd05F9",
-      "chain_id": 1111
-    },
-    {
-      "address": "0xf500208d9ab68fea3cc41bd107811e809c0b6b83",
-      "chain_id": 1111
-    },
-    {
-      "address": "0xcdf764933b9a9ebb2c5da904b9715f3cf981572a",
-      "chain_id": 1111
-    },
-    {
-      "address": "0x244c72AB61f11dD44Bfa4AaF11e2EFD89ca789fe",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xc53B1C26C992CAF4662A1B98954E641f323d8a55",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x34c53CdA2f1bdFc98db669C576C48B20EbA6f140",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x02F7a788ad41d74ec3Ba4613124b6310E33CC1B5",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x155Ae12Ff5331ac651FCA0711a9246e7F1A46Dc3",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xAe81b9fFCde5Ab7673dD4B2f5c648a5579430B17",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x4aF286b2BF66AE46dA121fFeB46c2a3BbE05DD97",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x58083B54013631BaCc0bbB6d4efa543Fee1D9cE0",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x3eFc2e351b64912168F15074a1e444E3272d64be",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x5bdB668DE9C160746c40c0528961a4ffc6231a59",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xd3e77e0ef0cce092f659a66e82dffe72aa44db90",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xe7E6B6f681283e2DEb3b6293e45754986aBC7CCd",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x3C2a14d0a0aEe8A86F1A7dCF674eB39d2AFaE9c0",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xA40b22C05Dd915BAeb83e4b633C59E37C6071d16",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x53455405946657d7D77D22D552120e60d9aeC218",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x974D63275013fd863992e7245572E9aedB3319D5",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xE19B799146276Fd8ba7Bf807347A33Ef7Fd49B4b",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x9d88364cE61172D5398cD99c96b8D74899943fF4",
-      "chain_id": 1112
-    },
-    {
-      "address": "0x4e202313790ae15AE84A7E5716EbFbB358C43530",
-      "chain_id": 1112
-    },
-    {
-      "address": "0xE8C5201f0f4bdde271ACC9F14057CB4fe0DBA616",
-      "chain_id": 1112
+      "address": "0x8CF2514eB92378a75D5512EDc27271Eba9c60539",
+      "chain_id": 1112,
+      "status": "i"
     }
   ]
 }

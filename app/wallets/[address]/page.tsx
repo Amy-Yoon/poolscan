@@ -90,39 +90,40 @@ export default function WalletDetailPage() {
 
   return (
     <div className="max-w-[1100px]">
-      {/* Header */}
-      <div className="flex items-start sm:items-center gap-2 mb-7 flex-wrap">
-        <button
-          onClick={() => router.back()}
-          className="h-9 w-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
-        >
-          <ArrowLeft size={15} className="text-gray-500" />
-        </button>
-
-        {/* 지갑 레이블 */}
-        <div className="h-9 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">{walletLabel}</span>
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">LP</span>
-        </div>
-
-        {/* 지갑 주소 */}
-        <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-[11px] text-gray-400">Address</span>
-          <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">
-            {data.address.slice(0, 6)}…{data.address.slice(-6)}
-          </span>
-        </div>
-
-        {/* Explorer */}
-        <div className="ml-auto shrink-0">
-          <a
-            href={`${chain.explorer}address/${address}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-9 px-3 flex items-center gap-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+      {/* Header — 2-row layout (same structure as pool detail) */}
+      <div className="mb-7 space-y-2">
+        {/* Row 1: back ← + wallet label + LP badge */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.back()}
+            className="h-9 w-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
           >
-            Explorer <ExternalLink size={12} />
-          </a>
+            <ArrowLeft size={15} className="text-gray-500" />
+          </button>
+          <div className="h-9 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 flex-1 min-w-0 overflow-hidden">
+            <span className="text-sm font-semibold text-gray-900 whitespace-nowrap truncate">{walletLabel}</span>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 shrink-0">LP</span>
+          </div>
+        </div>
+
+        {/* Row 2: address (left) + Explorer (right) — always full-width */}
+        <div className="flex items-center gap-2">
+          <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 min-w-0 overflow-hidden">
+            <span className="text-[11px] text-gray-400 shrink-0">Address</span>
+            <span className="text-[12px] font-mono text-gray-600 truncate">
+              {data.address.slice(0, 6)}…{data.address.slice(-6)}
+            </span>
+          </div>
+          <div className="ml-auto shrink-0">
+            <a
+              href={`${chain.explorer}address/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-9 px-3 flex items-center gap-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              Explorer <ExternalLink size={12} />
+            </a>
+          </div>
         </div>
       </div>
 

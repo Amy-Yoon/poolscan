@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { DBPool, DBWallet, DBToken, TokenMeta, ChainId } from "@/lib/types";
-import { getPools, getWallets, getTokens, getPoolsSync, getWalletsSync, getTokensSync, updatePoolStatus as dbUpdatePoolStatus, deletePool as dbDeletePool, deleteWallet as dbDeleteWallet } from "@/lib/db";
+import { getPools, getWallets, getTokens, getPoolsSync, getWalletsSync, getTokensSync, updatePoolStatus as dbUpdatePoolStatus, deletePool as dbDeletePool, deleteWallet as dbDeleteWallet, upsertToken, migrateStorage } from "@/lib/db";
 import { analyzeAddress, fetchPoolsMetadata } from "@/lib/blockchain";
 import { CHAINS } from "@/lib/utils";
+import { HARDCODED_STABLE_TOKENS, getStableAddressSet } from "@/lib/stableTokens";
 
 interface AppContextType {
   chainId: ChainId;
@@ -97,17 +98,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChainIdState(id);
     setIsLoading(true);
     loadFromCache(id);
-    setIsLoading(false);
+    // 스테이블 토큰 pre-seed (체인 전환 시에도)
+    Promise.allSettled(
+      HARDCODED_STABLE_TOKENS
+        .filter(t => t.chain_id === id)
+        .map(t => upsertToken({ address: t.address, chain_id: id, price: "1" }))
+    ).then(() => getTokens(id)).then(updated => {
+      setTokens(updated);
+      setTokenMetadata(prev => {
+        const next = { ...prev };
+        HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id).forEach(st => {
+          if (!next[st.address.toLowerCase()]) {
+            next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+          }
+        });
+        return next;
+      });
+      setIsLoading(false);
+    });
     pendingRefreshRef.current = true;
   }, [loadFromCache]);
 
-  // 초기 마운트: 캐시 로드 (온체인 요청 없음)
+  // 초기 마운트: 캐시 로드 + 스테이블 토큰 pre-seed (온체인 요청 없음)
   const isMountedRef = useRef(false);
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true;
+
+      // 0. 구버전 localStorage 데이터 정리 (type/fee/token0 등 온체인 필드 제거)
+      migrateStorage();
+
+      // 1. 캐시 / DB 로드
       loadFromCache(chainId);
-      setIsLoading(false);
+
+      // 2. 스테이블 토큰 항상 DB에 보장 (동기 localStorage 연산)
+      async function seedStables() {
+        const id = chainIdRef.current;
+        await Promise.allSettled(
+          HARDCODED_STABLE_TOKENS
+            .filter(t => t.chain_id === id)
+            .map(t => upsertToken({ address: t.address, chain_id: id, price: "1" }))
+        );
+        // 재로드해서 스테이블이 Token 목록에 반영되게
+        const updated = await getTokens(id);
+        setTokens(updated);
+        // tokenMetadata에도 심볼 추가
+        setTokenMetadata(prev => {
+          const next = { ...prev };
+          HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id).forEach(st => {
+            if (!next[st.address.toLowerCase()]) {
+              next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+            }
+          });
+          return next;
+        });
+      }
+      seedStables().finally(() => setIsLoading(false));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -176,46 +222,133 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const metaMap: Record<string, any> = {};
       activeMetaResults.forEach(r => { metaMap[r.address.toLowerCase()] = r; });
 
-      // 5. Pool metadata에서 토큰 심볼/decimals 보충 (scanned에 없는 토큰 커버)
+      // 5. Pool metadata → 토큰 자동 등록 + tokenMeta 보충
       const enrichedTokenMeta = { ...scannedMeta };
+      const stableAddrs = getStableAddressSet(id);
+
+      // 5a. 풀에서 발견된 토큰 주소 수집 및 메타 보충
+      // fetchSinglePoolMeta 반환: { token0: "0x...", symbol0: "WEMIX", dec0: 18, ... }
+      const discoveredTokenAddrs = new Set<string>();
       for (const r of activeMetaResults) {
-        if (!r.isValid) continue;
-        if (r.token0 && !enrichedTokenMeta[r.token0.toLowerCase()]) {
-          enrichedTokenMeta[r.token0.toLowerCase()] = { symbol: r.symbol0 ?? "?", name: r.symbol0 ?? "?", decimals: 18 };
+        if (!r?.isValid) continue;
+        // token0
+        const t0addr = r.token0 as string | undefined;
+        const t0sym  = r.symbol0 as string | undefined;
+        const t0dec  = (r.dec0 as number | undefined) ?? 18;
+        if (t0addr && t0sym && t0sym !== "?") {
+          discoveredTokenAddrs.add(t0addr.toLowerCase());
+          if (!enrichedTokenMeta[t0addr.toLowerCase()]) {
+            enrichedTokenMeta[t0addr.toLowerCase()] = { symbol: t0sym, name: t0sym, decimals: t0dec };
+          }
         }
-        if (r.token1 && !enrichedTokenMeta[r.token1.toLowerCase()]) {
-          enrichedTokenMeta[r.token1.toLowerCase()] = { symbol: r.symbol1 ?? "?", name: r.symbol1 ?? "?", decimals: 18 };
+        // token1
+        const t1addr = r.token1 as string | undefined;
+        const t1sym  = r.symbol1 as string | undefined;
+        const t1dec  = (r.dec1 as number | undefined) ?? 18;
+        if (t1addr && t1sym && t1sym !== "?") {
+          discoveredTokenAddrs.add(t1addr.toLowerCase());
+          if (!enrichedTokenMeta[t1addr.toLowerCase()]) {
+            enrichedTokenMeta[t1addr.toLowerCase()] = { symbol: t1sym, name: t1sym, decimals: t1dec };
+          }
         }
       }
+
+      // 5b. 발견된 토큰 자동 DB 등록 (price: null → oracle 사용)
+      const existingTokenAddrs = new Set(dbTokens.map(t => t.address.toLowerCase()));
+      const newTokenAddrs = [...discoveredTokenAddrs].filter(a => !existingTokenAddrs.has(a));
+      if (newTokenAddrs.length > 0) {
+        await Promise.allSettled(
+          newTokenAddrs.map(addr =>
+            upsertToken({ address: addr, chain_id: id, price: null })
+          )
+        );
+      }
+
+      // 5c. 하드코딩 스테이블 토큰 항상 $1.00 으로 upsert
+      await Promise.allSettled(
+        HARDCODED_STABLE_TOKENS
+          .filter(t => t.chain_id === id)
+          .map(t => upsertToken({ address: t.address, chain_id: id, price: "1" }))
+      );
+
+      // 5d. 스테이블 토큰도 enrichedTokenMeta에 심볼 보충
+      for (const st of HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id)) {
+        if (!enrichedTokenMeta[st.address.toLowerCase()]) {
+          enrichedTokenMeta[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+        }
+      }
+
+      // 5e. 토큰 DB 재로드 (신규 등록된 것 포함)
+      const finalTokens = await getTokens(id);
       setRefreshPercent(85);
 
       const now = new Date();
       setPools(dbPools);
       setWallets(dbWallets);
-      setTokens(dbTokens);
+      setTokens(finalTokens);
       setMetadata(metaMap);
       setTokenMetadata(enrichedTokenMeta);
       setLastUpdated(now);
 
       // 6. 캐시 저장
       saveCache(id, {
-        pools: dbPools, wallets: dbWallets, tokens: dbTokens,
+        pools: dbPools, wallets: dbWallets, tokens: finalTokens,
         metadata: metaMap, tokenMetadata: enrichedTokenMeta, lastUpdated: now.toISOString()
       });
 
       setRefreshPercent(100);
       setRefreshProgress("Done!");
 
-      // 7. Inactive 풀 백그라운드 조회
+      // 7. Inactive 풀 백그라운드 조회 + 토큰 자동 등록
       if (inactivePools.length > 0) {
         setRefreshProgress(`비활성 풀 백그라운드 조회 중… (${inactivePools.length}개)`);
-        fetchPoolsMetadata(inactivePools.map(p => p.address), id).then(inactiveResults => {
+        fetchPoolsMetadata(inactivePools.map(p => p.address), id).then(async inactiveResults => {
+          // 7a. inactive 풀에서 토큰 주소 수집
+          const inactiveTokenAddrs = new Set<string>();
+          const inactiveTokenMeta: Record<string, TokenMeta> = {};
+          for (const r of inactiveResults) {
+            if (!r?.isValid) continue;
+            const t0addr = r.token0 as string | undefined;
+            const t0sym  = r.symbol0 as string | undefined;
+            const t0dec  = (r.dec0 as number | undefined) ?? 18;
+            if (t0addr && t0sym && t0sym !== "?") {
+              inactiveTokenAddrs.add(t0addr.toLowerCase());
+              inactiveTokenMeta[t0addr.toLowerCase()] = { symbol: t0sym, name: t0sym, decimals: t0dec };
+            }
+            const t1addr = r.token1 as string | undefined;
+            const t1sym  = r.symbol1 as string | undefined;
+            const t1dec  = (r.dec1 as number | undefined) ?? 18;
+            if (t1addr && t1sym && t1sym !== "?") {
+              inactiveTokenAddrs.add(t1addr.toLowerCase());
+              inactiveTokenMeta[t1addr.toLowerCase()] = { symbol: t1sym, name: t1sym, decimals: t1dec };
+            }
+          }
+
+          // 7b. 아직 DB에 없는 토큰만 등록
+          const currentTokenAddrs = new Set((await getTokens(id)).map(t => t.address.toLowerCase()));
+          const newInactiveTokenAddrs = [...inactiveTokenAddrs].filter(a => !currentTokenAddrs.has(a));
+          if (newInactiveTokenAddrs.length > 0) {
+            await Promise.allSettled(
+              newInactiveTokenAddrs.map(addr => upsertToken({ address: addr, chain_id: id, price: null }))
+            );
+          }
+
+          // 7c. 토큰 DB 재로드 + tokenMetadata 보충
+          const finalTokensWithInactive = await getTokens(id);
+          const updatedTokenMeta = { ...enrichedTokenMeta };
+          for (const [addr, meta] of Object.entries(inactiveTokenMeta)) {
+            if (!updatedTokenMeta[addr]) updatedTokenMeta[addr] = meta;
+          }
+          setTokens(finalTokensWithInactive);
+          setTokenMetadata(updatedTokenMeta);
+
+          // 7d. 메타데이터 + 캐시 업데이트
           setMetadata(prev => {
             const updated = { ...prev };
             inactiveResults.forEach(r => { updated[r.address.toLowerCase()] = r; });
             saveCache(id, {
-              pools: dbPools, wallets: dbWallets, tokens: dbTokens,
-              metadata: updated, tokenMetadata: enrichedTokenMeta, lastUpdated: now.toISOString()
+              pools: dbPools, wallets: dbWallets, tokens: finalTokensWithInactive,
+              metadata: updated, tokenMetadata: updatedTokenMeta, lastUpdated: now.toISOString()
             });
             return updated;
           });
