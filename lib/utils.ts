@@ -184,7 +184,7 @@ export const fmtAmt = (n: any): string => {
  */
 export const fmtRate = (n: any): string => {
   const val = Number(n);
-  if (!isFinite(val) || isNaN(val)) return "N/A";
+  if (!isFinite(val) || isNaN(val) || val >= SANE_MAX) return "N/A";
   if (val === 0) return "0";
   return stripZeros(val.toFixed(6));
 };
