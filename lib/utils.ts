@@ -197,8 +197,8 @@ export const fmtRate = (n: any): string => {
 export const fmtTokenPrice = (n: any): string => {
   const val = Number(n);
   if (!isFinite(val) || isNaN(val) || val >= SANE_MAX) return "N/A";
-  if (val === 0) return "0";
-  return stripZeros(val.toFixed(4));
+  if (val === 0) return "0.0000";
+  return val.toFixed(4);
 };
 
 /** Abbreviated token quantity for compact spaces (K / M). */

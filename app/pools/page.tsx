@@ -188,10 +188,10 @@ export default function PoolsPage() {
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-[13px] font-medium rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 bg-gray-900 hover:bg-black text-white text-[13px] font-medium rounded-lg transition-colors"
           >
             <Download size={13} />
-            Export
+            <span className="hidden sm:inline">Export</span>
             <ChevronDown size={12} className={"transition-transform " + (showExportMenu ? "rotate-180" : "")} />
           </button>
           {showExportMenu && (

@@ -122,8 +122,8 @@ export default function PoolDetailPage() {
         </div>
       )}
 
-      {/* Header — 모든 요소 한 줄 */}
-      <div className="flex items-center gap-2 mb-7 flex-wrap">
+      {/* Header */}
+      <div className="flex items-start sm:items-center gap-2 mb-7 flex-wrap">
         {/* 뒤로가기 */}
         <button
           onClick={() => router.back()}
@@ -159,7 +159,7 @@ export default function PoolDetailPage() {
         </div>
 
         {/* 우측 액션 버튼들 */}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
+        <div className="ml-auto flex items-center gap-2 shrink-0 flex-wrap">
           {dbPool && (
             <button
               onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
@@ -189,7 +189,7 @@ export default function PoolDetailPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {/* Exchange Rates */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="text-xs text-gray-500 mb-4">Exchange Rate</div>

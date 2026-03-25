@@ -90,8 +90,8 @@ export default function WalletDetailPage() {
 
   return (
     <div className="max-w-[1100px]">
-      {/* Header — 블록형 한 줄 */}
-      <div className="flex items-center gap-2 mb-7 flex-wrap">
+      {/* Header */}
+      <div className="flex items-start sm:items-center gap-2 mb-7 flex-wrap">
         <button
           onClick={() => router.back()}
           className="h-9 w-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
@@ -158,7 +158,7 @@ export default function WalletDetailPage() {
           </div>
 
           {lpPositions.v3.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
               {lpPositions.v3.map((pos: any) => {
                 const p0 = Number(tokenPrices[(pos.token0?.address || "").toLowerCase()] || 0);
                 const p1 = Number(tokenPrices[(pos.token1?.address || "").toLowerCase()] || 0);
@@ -209,30 +209,30 @@ export default function WalletDetailPage() {
 
                     {/* 수량 테이블 */}
                     {hasAmounts ? (
-                      <div className="space-y-1">
+                      <div className="space-y-1 overflow-x-auto">
                         {/* 컬럼 헤더 */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] text-[10px] text-gray-400 px-2">
+                        <div className="grid grid-cols-[64px_1fr_1fr_68px] text-[10px] text-gray-400 px-2 min-w-[260px]">
                           <span />
                           <span className="text-center font-medium text-gray-500">{sym0}</span>
                           <span className="text-center font-medium text-gray-500">{sym1}</span>
                           <span className="text-right">Value</span>
                         </div>
                         {/* Deposit */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-white border border-gray-100 rounded-lg px-2 py-2 text-[11px]">
+                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-white border border-gray-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
                           <span className="text-gray-500 font-medium">Deposit</span>
                           <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount0)}</span>
                           <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount1)}</span>
                           <span className="text-right text-gray-600 font-medium">{fmtFullUSD(dep0Val + dep1Val)}</span>
                         </div>
                         {/* Rewards */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-amber-50 border border-amber-100 rounded-lg px-2 py-2 text-[11px]">
+                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-amber-50 border border-amber-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
                           <span className="text-amber-600 font-medium">Rewards</span>
                           <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees0)}</span>
                           <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees1)}</span>
                           <span className="text-right text-amber-700 font-medium">{fmtFullUSD(rew0Val + rew1Val)}</span>
                         </div>
                         {/* Total */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-blue-50 border border-blue-100 rounded-lg px-2 py-2 text-[11px]">
+                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-blue-50 border border-blue-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
                           <span className="text-blue-600 font-medium">Total</span>
                           <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total0)}</span>
                           <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total1)}</span>
@@ -269,12 +269,12 @@ export default function WalletDetailPage() {
               {lpPositions.v2.map((pos: any) => {
                 const meta = metadata[pos.pool.address.toLowerCase()];
                 return (
-                  <div key={pos.pool.address} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div>
+                  <div key={pos.pool.address} className="px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                    <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900">
                         {meta?.isValid ? `${meta.symbol0} / ${meta.symbol1}` : `V2 LP (${pos.pool.address.slice(0, 8)}…)`}
                       </div>
-                      <div className="text-[11px] font-mono text-gray-400 mt-0.5">{pos.pool.address}</div>
+                      <div className="text-[11px] font-mono text-gray-400 mt-0.5 truncate">{pos.pool.address}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-gray-900">{fmtAmt(pos.formattedBalance)}</div>
