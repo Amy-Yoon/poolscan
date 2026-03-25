@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { getWalletLPPositions, fetchTokenPrices } from "@/lib/blockchain";
-import { downloadCSV, fmtFull, fmtFullUSD, fmtNum } from "@/lib/utils";
+import { downloadCSV, fmtAmt, fmtRate, fmtFullUSD } from "@/lib/utils";
 import { Loader2, ChevronDown, ChevronRight, Download, ArrowLeftRight, Trash2 } from "lucide-react";
 
 /** Extreme range boundary → ∞ / 0 */
 const fmtPrice = (n: number): string => {
   if (!isFinite(n) || n > 1e15) return "∞";
   if (n <= 0 || n < 1e-10) return "0";
-  return fmtFull(n, 4);
+  return fmtRate(n);
 };
 
 interface V3PositionDetail {
@@ -242,7 +242,7 @@ export default function WalletsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Wallet Manager</h1>
-        <p className="text-sm text-gray-500 mt-0.5">등록된 지갑의 LP 포지션 및 유동성 추적</p>
+        <p className="text-sm text-gray-500 mt-0.5">Track V2/V3 LP positions across registered wallets</p>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -261,10 +261,10 @@ export default function WalletsPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-center">#</th>
-                <th className="px-4 py-3 text-[11px] font-medium text-gray-500">라벨 / 주소</th>
+                <th className="px-4 py-3 text-[11px] font-medium text-gray-500">Label / Address</th>
                 <th className="px-2 py-3 text-[11px] font-medium text-gray-500 text-center">V2</th>
                 <th className="px-2 py-3 text-[11px] font-medium text-gray-500 text-center">V3</th>
-                <th className="px-2 py-3 text-[11px] font-medium text-gray-500 text-center">포지션</th>
+                <th className="px-2 py-3 text-[11px] font-medium text-gray-500 text-center">Positions</th>
                 <th className="px-4 py-3 text-[11px] font-medium text-gray-500 text-right">Total Value</th>
                 <th className="px-3 py-3 text-[11px] font-medium text-gray-500"></th>
               </tr>
@@ -360,7 +360,7 @@ export default function WalletsPage() {
                           )}
                           <button
                             onClick={() => {
-                              if (confirm(`"${wallet.label}" 지갑을 삭제할까요?`)) {
+                              if (confirm(`Remove wallet "${wallet.label}"?`)) {
                                 removeWallet(wallet.id);
                               }
                             }}
@@ -448,12 +448,12 @@ export default function WalletsPage() {
                                                   type="button"
                                                   onClick={(e) => { e.stopPropagation(); togglePriceReverse(pos.tokenId, e); }}
                                                   className="flex items-center gap-1 font-mono text-gray-600 hover:text-blue-600 transition-colors"
-                                                  title="클릭해서 반전"
+                                                  title="Click to reverse"
                                                 >
                                                   <span className="tabular-nums">
                                                     {reversedPrices[pos.tokenId]
-                                                      ? fmtFull(1 / pos.currentPrice, 4)
-                                                      : fmtFull(pos.currentPrice, 4)
+                                                      ? fmtRate(1 / pos.currentPrice)
+                                                      : fmtRate(pos.currentPrice)
                                                     }
                                                   </span>
                                                   <span className="text-[9px] text-gray-400">
@@ -477,11 +477,11 @@ export default function WalletsPage() {
                                             </td>
                                             {/* Deposit T0 */}
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-700 whitespace-nowrap">
-                                              {pos.hasAmounts ? fmtFull(pos.amount0, 4) : "—"}
+                                              {pos.hasAmounts ? fmtAmt(pos.amount0) : "—"}
                                             </td>
                                             {/* Deposit T1 */}
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-700 whitespace-nowrap">
-                                              {pos.hasAmounts ? fmtFull(pos.amount1, 4) : "—"}
+                                              {pos.hasAmounts ? fmtAmt(pos.amount1) : "—"}
                                             </td>
                                             {/* Deposit $ */}
                                             <td className="px-3 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">
@@ -489,11 +489,11 @@ export default function WalletsPage() {
                                             </td>
                                             {/* Rewards T0 */}
                                             <td className="px-3 py-2.5 text-right font-mono text-amber-600 whitespace-nowrap">
-                                              {pos.hasAmounts ? fmtFull(pos.fees0, 6) : "—"}
+                                              {pos.hasAmounts ? fmtAmt(pos.fees0) : "—"}
                                             </td>
                                             {/* Rewards T1 */}
                                             <td className="px-3 py-2.5 text-right font-mono text-amber-600 whitespace-nowrap">
-                                              {pos.hasAmounts ? fmtFull(pos.fees1, 6) : "—"}
+                                              {pos.hasAmounts ? fmtAmt(pos.fees1) : "—"}
                                             </td>
                                             {/* Rewards $ */}
                                             <td className="px-3 py-2.5 text-right font-medium text-amber-600 whitespace-nowrap">
@@ -559,14 +559,14 @@ export default function WalletsPage() {
                                             {/* Token0 amount */}
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-700 whitespace-nowrap">
                                               {pos.amount0 !== null
-                                                ? <>{fmtFull(pos.amount0, 4)} <span className="text-gray-400">{pos.sym0}</span></>
+                                                ? <>{fmtAmt(pos.amount0)} <span className="text-gray-400">{pos.sym0}</span></>
                                                 : <span className="text-gray-300">—</span>
                                               }
                                             </td>
                                             {/* Token1 amount */}
                                             <td className="px-3 py-2.5 text-right font-mono text-gray-700 whitespace-nowrap">
                                               {pos.amount1 !== null
-                                                ? <>{fmtFull(pos.amount1, 4)} <span className="text-gray-400">{pos.sym1}</span></>
+                                                ? <>{fmtAmt(pos.amount1)} <span className="text-gray-400">{pos.sym1}</span></>
                                                 : <span className="text-gray-300">—</span>
                                               }
                                             </td>
@@ -597,7 +597,7 @@ export default function WalletsPage() {
           </div>
         ) : (
           <div className="flex items-center justify-center h-48 text-sm text-gray-400">
-            {isLoading ? "로딩 중…" : "등록된 지갑이 없습니다"}
+            {isLoading ? "Loading…" : "No wallets registered"}
           </div>
         )}
       </div>

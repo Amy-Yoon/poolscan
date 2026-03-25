@@ -139,12 +139,36 @@ export interface PoolscanConfig {
 
 /** Download current config as a JSON file */
 export function exportConfig(): void {
-  const config: PoolscanConfig = {
+  const allPools   = getItem<DBPool[]>("pools", []);
+  const allWallets = getItem<DBWallet[]>("wallets", []);
+  const allTokens  = getItem<DBToken[]>("tokens", []);
+
+  // Slim format — strip internal fields (id, created_at) not needed for restore
+  const config = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    pools: getItem<DBPool[]>("pools", []),
-    wallets: getItem<DBWallet[]>("wallets", []),
-    tokens: getItem<DBToken[]>("tokens", []),
+    pools: allPools.map(p => ({
+      address:  p.address,
+      chain_id: p.chain_id,
+      type:     p.type,
+      fee:      p.fee,
+      token0:   p.token0,
+      token1:   p.token1,
+      label:    p.label,
+      status:   p.status,
+    })),
+    wallets: allWallets.map(w => ({
+      address:  w.address,
+      chain_id: w.chain_id,
+      label:    w.label,
+    })),
+    tokens: allTokens.map(t => ({
+      address:  t.address,
+      chain_id: t.chain_id,
+      symbol:   t.symbol,
+      name:     t.name,
+      decimals: t.decimals,
+    })),
   };
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);

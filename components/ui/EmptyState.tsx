@@ -12,7 +12,7 @@ interface EmptyStateProps {
   height?: string;
 }
 
-export function EmptyState({ message, loadingMessage = "로딩 중…", height = "h-52" }: EmptyStateProps) {
+export function EmptyState({ message, loadingMessage = "Loading…", height = "h-52" }: EmptyStateProps) {
   const { isLoading, isRefreshing, importDefaultData, isImportingDefault } = useApp();
 
   if (isLoading || isRefreshing) {
@@ -36,7 +36,7 @@ export function EmptyState({ message, loadingMessage = "로딩 중…", height =
           ? <Loader2 size={13} className="animate-spin" />
           : <DatabaseZap size={13} />
         }
-        {isImportingDefault ? "가져오는 중…" : "기본 데이터 가져오기"}
+        {isImportingDefault ? "Importing…" : "Load Default Data"}
       </button>
     </div>
   );

@@ -11,7 +11,7 @@ export function RefreshBar() {
   const pct = refreshPercent < 0 ? 0 : Math.min(refreshPercent, 100);
 
   return (
-    <div className="fixed top-[56px] left-[220px] right-0 h-[3px] z-50 bg-gray-100 overflow-hidden">
+    <div className="fixed top-[56px] left-0 lg:left-[220px] right-0 h-[3px] z-50 bg-gray-100 overflow-hidden">
       <div
         className="h-full bg-blue-500 transition-all duration-500 ease-out"
         style={{ width: `${pct}%` }}

@@ -306,7 +306,7 @@ export default function SettingsPage() {
           default. Changes take effect immediately — no page reload required.
         </p>
         <p className="text-blue-600 leading-relaxed">
-          You can use the <strong>내보내기 (Export)</strong> button in the header to backup all your pools, wallets,
+          You can use the <strong>Export</strong> button in the header to backup all your pools, wallets,
           tokens and import the <strong>wemix-default-config.json</strong> to populate a fresh setup.
         </p>
       </div>

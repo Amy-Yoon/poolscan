@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getPoolData, fetchTokenPrices } from "@/lib/blockchain";
-import { getChain, fmtFull, fmtFullUSD } from "@/lib/utils";
+import { getChain, fmtAmt, fmtRate, fmtFullUSD } from "@/lib/utils";
 import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, Trash2 } from "lucide-react";
 
 export default function PoolDetailPage() {
@@ -42,7 +42,7 @@ export default function PoolDetailPage() {
         pResults.forEach((r: any) => (pMap[r.address.toLowerCase()] = r.price));
         setTokenPrices(pMap);
       } catch (e: any) {
-        setError(e.message || "온체인 데이터를 불러오는데 실패했습니다");
+        setError(e.message || "Failed to load on-chain data");
       } finally {
         setIsLoading(false);
       }
@@ -54,7 +54,7 @@ export default function PoolDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
         <Loader2 size={28} className="animate-spin text-blue-500" />
-        <p className="text-sm text-gray-400">온체인 데이터 불러오는 중…</p>
+        <p className="text-sm text-gray-400">Loading on-chain data…</p>
       </div>
     );
   }
@@ -66,16 +66,16 @@ export default function PoolDetailPage() {
           <AlertTriangle size={22} className="text-red-500" />
         </div>
         <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-1">데이터 로드 실패</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Failed to Load Data</h2>
           <p className="text-sm text-gray-500">{error}</p>
           <p className="text-[11px] text-gray-400 font-mono mt-1">{address}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.location.reload()} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-black transition-colors">
-            다시 시도
+            Retry
           </button>
           <button onClick={() => router.back()} className="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">
-            뒤로가기
+            Go Back
           </button>
         </div>
       </div>
@@ -95,19 +95,19 @@ export default function PoolDetailPage() {
               <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center shrink-0">
                 <Trash2 size={16} className="text-red-500" />
               </div>
-              <h2 className="text-base font-semibold text-gray-900">풀 삭제</h2>
+              <h2 className="text-base font-semibold text-gray-900">Delete Pool</h2>
             </div>
             <p className="text-sm text-gray-500 mb-1">
-              <span className="font-medium text-gray-700">{data.token0.symbol} / {data.token1.symbol}</span> 풀을 목록에서 삭제하시겠습니까?
+              Remove <span className="font-medium text-gray-700">{data.token0.symbol} / {data.token1.symbol}</span> from your pool list?
             </p>
-            <p className="text-[12px] text-gray-400 mb-5">이 작업은 되돌릴 수 없습니다.</p>
+            <p className="text-[12px] text-gray-400 mb-5">This action cannot be undone.</p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
                 className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                취소
+                Cancel
               </button>
               <button
                 onClick={handleDelete}
@@ -115,7 +115,7 @@ export default function PoolDetailPage() {
                 className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-60"
               >
                 {isDeleting && <Loader2 size={13} className="animate-spin" />}
-                삭제
+                Delete
               </button>
             </div>
           </div>
@@ -145,14 +145,14 @@ export default function PoolDetailPage() {
           </span>
           {dbPool && (
             <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${dbPool.status === "i" ? "bg-gray-100 text-gray-400" : "bg-emerald-50 text-emerald-700"}`}>
-              {dbPool.status === "i" ? "비활성" : "활성"}
+              {dbPool.status === "i" ? "Inactive" : "Active"}
             </span>
           )}
         </div>
 
         {/* 컨트랙트 주소 */}
         <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-[11px] text-gray-400">컨트랙트</span>
+          <span className="text-[11px] text-gray-400">Contract</span>
           <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">
             {data.address.slice(0, 6)}…{data.address.slice(-6)}
           </span>
@@ -165,7 +165,7 @@ export default function PoolDetailPage() {
               onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
               className="h-9 px-3 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
             >
-              {dbPool.status === "i" ? "활성화" : "비활성으로 변경"}
+              {dbPool.status === "i" ? "Activate" : "Set Inactive"}
             </button>
           )}
           <a
@@ -180,7 +180,7 @@ export default function PoolDetailPage() {
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="h-9 w-9 flex items-center justify-center bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors"
-              title="풀 삭제"
+              title="Delete pool"
             >
               <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
             </button>
@@ -192,15 +192,15 @@ export default function PoolDetailPage() {
       <div className="grid grid-cols-3 gap-4 mb-6">
         {/* Exchange Rates */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
-          <div className="text-xs text-gray-500 mb-4">교환비</div>
+          <div className="text-xs text-gray-500 mb-4">Exchange Rate</div>
           <div className="space-y-4">
             <div>
-              <div className="text-lg font-semibold text-gray-900">{fmtFull(data.price, 6)}</div>
+              <div className="text-lg font-semibold text-gray-900 truncate">{fmtRate(data.price)}</div>
               <div className="text-[11px] text-gray-400 mt-0.5">1 {data.token0.symbol} = {data.token1.symbol}</div>
             </div>
             <div className="pt-4 border-t border-gray-100">
-              <div className="text-lg font-semibold text-gray-900">
-                {data.price > 0 ? fmtFull(1 / data.price, 6) : "—"}
+              <div className="text-lg font-semibold text-gray-900 truncate">
+                {data.price > 0 ? fmtRate(1 / data.price) : "—"}
               </div>
               <div className="text-[11px] text-gray-400 mt-0.5">1 {data.token1.symbol} = {data.token0.symbol}</div>
             </div>
@@ -209,18 +209,18 @@ export default function PoolDetailPage() {
 
         {/* Liquidity Amounts */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
-          <div className="text-xs text-gray-500 mb-4">유동성 잔액</div>
+          <div className="text-xs text-gray-500 mb-4">Liquidity Balance</div>
           <div className="space-y-4">
             <div>
               <div className="flex items-baseline justify-between">
-                <div className="text-lg font-semibold text-gray-900">{fmtFull(data.token0.balance, 2)}</div>
-                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{data.token0.symbol}</span>
+                <div className="text-lg font-semibold text-gray-900 truncate">{fmtAmt(data.token0.balance)}</div>
+                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">{data.token0.symbol}</span>
               </div>
               <div className="text-[11px] text-gray-400 mt-0.5">{fmtFullUSD(t0Value)}</div>
             </div>
             <div className="pt-4 border-t border-gray-100">
               <div className="flex items-baseline justify-between">
-                <div className="text-lg font-semibold text-gray-900">{fmtFull(data.token1.balance, 2)}</div>
+                <div className="text-lg font-semibold text-gray-900 truncate">{fmtAmt(data.token1.balance)}</div>
                 <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{data.token1.symbol}</span>
               </div>
               <div className="text-[11px] text-gray-400 mt-0.5">{fmtFullUSD(t1Value)}</div>
@@ -231,7 +231,7 @@ export default function PoolDetailPage() {
         {/* TVL + Info */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="text-xs text-gray-500 mb-4">TVL</div>
-          <div className="text-2xl font-semibold text-blue-600 mb-1">{fmtFullUSD(data.tvl)}</div>
+          <div className="text-xl font-semibold text-blue-600 mb-1 truncate">{fmtFullUSD(data.tvl)}</div>
           <div className="text-[11px] text-gray-400 mb-5">Total Value Locked</div>
           {data.type === "v3" && (
             <div className="border-t border-gray-100 pt-4">

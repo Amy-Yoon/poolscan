@@ -175,7 +175,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const id = chainIdRef.current;
     setIsRefreshing(true);
     setRefreshPercent(0);
-    setRefreshProgress("DB 데이터 불러오는 중…");
+    setRefreshProgress("Loading DB data…");
     try {
       // 1. DB + 초기 풀 목록 병합
       const [dbPools, dbWallets, dbTokens] = await Promise.all([
@@ -193,7 +193,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setRefreshPercent(10);
 
       // 2. 토큰 스캔 — symbol이 비어있는 등록 토큰들의 메타데이터를 온체인에서 채움
-      setRefreshProgress("토큰 정보 조회 중…");
+      setRefreshProgress("Fetching token metadata…");
       setRefreshPercent(20);
       const emptyTokenAddrs = dbTokens
         .filter(t => !t.symbol || t.symbol.trim() === "")
@@ -236,7 +236,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       setRefreshPercent(100);
-      setRefreshProgress("완료!");
+      setRefreshProgress("Done!");
 
       // 5. Inactive 풀 백그라운드 조회
       if (inactivePools.length > 0) {
@@ -255,7 +255,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e: any) {
       console.error("Refresh failed:", e);
-      setRefreshProgress(`오류: ${e?.message ?? "알 수 없는 오류"}`);
+      setRefreshProgress(`Error: ${e?.message ?? "알 수 없는 오류"}`);
       setRefreshPercent(-1);
     } finally {
       setIsRefreshing(false);
@@ -293,7 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsImportingDefault(true);
     try {
       const res = await fetch("/wemix-default-config.json");
-      if (!res.ok) throw new Error("기본 데이터를 불러올 수 없습니다.");
+      if (!res.ok) throw new Error("Failed to load default data.");
       const json = await res.text();
       const { importConfig } = await import("@/lib/db");
       importConfig(json);

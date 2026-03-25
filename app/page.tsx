@@ -58,7 +58,7 @@ export default function DashboardPage() {
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">위믹스 생태계 온체인 유동성 현황</p>
+        <p className="text-sm text-gray-500 mt-0.5">Real-time overview of TVL, pools & wallets</p>
       </div>
 
       {/* Stats */}
@@ -85,13 +85,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Content */}
-      <div className="grid grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Active Pools */}
-        <div className="col-span-3 bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="col-span-1 lg:col-span-3 bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
             <span className="text-sm font-medium text-gray-800">Active Pools</span>
             <Link href="/pools" className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-              전체 보기 <ArrowRight size={12} />
+              View all <ArrowRight size={12} />
             </Link>
           </div>
           {currentPools.length > 0 ? (
@@ -124,23 +124,23 @@ export default function DashboardPage() {
                       href={`/pools/${pool.address}`}
                       className="shrink-0 flex items-center gap-1 text-[12px] text-gray-400 group-hover:text-blue-600 transition-colors"
                     >
-                      상세 <ArrowRight size={11} />
+                      <ArrowRight size={11} />
                     </Link>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <EmptyState message="등록된 풀이 없습니다" height="h-48" />
+            <EmptyState message="No pools registered" height="h-48" />
           )}
         </div>
 
         {/* Wallets */}
-        <div className="col-span-2 bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="col-span-1 lg:col-span-2 bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
             <span className="text-sm font-medium text-gray-800">Tracked Wallets</span>
             <Link href="/wallets" className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-              전체 보기 <ArrowRight size={12} />
+              View all <ArrowRight size={12} />
             </Link>
           </div>
           {currentWallets.length > 0 ? (
@@ -165,7 +165,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 text-sm text-gray-400">
-              등록된 지갑이 없습니다
+              No wallets registered
             </div>
           )}
         </div>

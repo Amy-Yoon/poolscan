@@ -46,11 +46,11 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
       }
       
       await refreshData();
-      alert("성공적으로 등록되었습니다!");
+      alert("Successfully registered!");
       onClose();
     } catch (e) {
       console.error(e);
-      alert("등록 중 오류가 발생했습니다.");
+      alert("An error occurred during registration.");
     } finally {
       setIsAdding(false);
     }
@@ -62,8 +62,8 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
         <div className="p-8">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-[20px] font-black text-gray-900 tracking-tight">검색 결과</h2>
-              <p className="text-[13px] text-gray-400 font-medium">조회된 블록체인 데이터입니다</p>
+              <h2 className="text-[20px] font-black text-gray-900 tracking-tight">Search Result</h2>
+              <p className="text-[13px] text-gray-400 font-medium">On-chain data found for this address</p>
             </div>
             <button
               onClick={onClose}
@@ -123,7 +123,7 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
 
               {result.type === "wallet" && (
                 <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-[12px] font-medium text-blue-600 italic">
-                  이 주소는 현재 컨트랙트 코드가 없는 개인 지갑(EOA)으로 보입니다.
+                  This address appears to be an EOA (externally owned account) with no contract code.
                 </div>
               )}
             </div>
@@ -132,11 +132,11 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
           {result.type !== "unknown" && (
             <div className="mb-8">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 px-1">
-                커스텀 레이블 (선택 사항)
+                Custom Label (optional)
               </label>
               <input
                 type="text"
-                placeholder={result.type === "wallet" ? "예: 내 메인 지갑" : "예: WEMIX-USDC 풀"}
+                placeholder={result.type === "wallet" ? "e.g. My Main Wallet" : "e.g. WEMIX-USDC Pool"}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full h-12 bg-white border border-gray-200 rounded-2xl px-5 text-[13px] font-bold focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-gray-300 shadow-sm"
@@ -149,14 +149,14 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
               onClick={onClose}
               className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-500 font-black text-[13px] hover:bg-gray-50 transition-colors"
             >
-              취소
+              Cancel
             </button>
             <button
               onClick={handleAdd}
               disabled={isAdding || result.type === "unknown"}
               className="flex-2 h-12 bg-blue-500 text-white rounded-2xl font-black text-[13px] px-8 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25 active:scale-95"
             >
-              {isAdding ? "추가 중..." : "목록에 추가하기"}
+              {isAdding ? "Adding…" : "Add to List"}
             </button>
           </div>
         </div>

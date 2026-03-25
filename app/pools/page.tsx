@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
-import { fmtFull, fmtFullUSD, downloadCSV, getChain } from "@/lib/utils";
+import { fmtAmt, fmtRate, fmtFullUSD, downloadCSV, getChain } from "@/lib/utils";
 import { Download, ChevronDown, ExternalLink, Trash2, Power, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -68,14 +68,20 @@ export default function PoolsPage() {
   }, [activePools, metadata, tokenPrices]);
 
   const handleExport = (list: typeof pools, fileName: string) => {
-    const rows = [["Type", "Pair", "Fee", "Exchange Rate", "T0 Amount", "T0 Symbol", "T0 Value", "T1 Amount", "T1 Symbol", "T1 Value", "TVL", "Address"]];
+    const rows: (string | number)[][] = [
+      ["chain_id", "address", "type", "fee", "token0", "token1", "label", "status"],
+    ];
     list.forEach(p => {
-      const meta = metadata[p.address.toLowerCase()];
-      if (meta?.isValid) {
-        const v0 = Number(meta.t0Amt) * Number(tokenPrices[meta.token0.toLowerCase()] || 0);
-        const v1 = Number(meta.t1Amt) * Number(tokenPrices[meta.token1.toLowerCase()] || 0);
-        rows.push([meta.type, `${meta.symbol0}/${meta.symbol1}`, `${meta.fee}%`, meta.price, meta.t0Amt, meta.symbol0, v0, meta.t1Amt, meta.symbol1, v1, meta.tvl, p.address]);
-      }
+      rows.push([
+        p.chain_id,
+        p.address,
+        p.type,
+        p.fee ?? "",
+        p.token0 ?? "",
+        p.token1 ?? "",
+        p.label ?? "",
+        p.status === "i" ? "inactive" : "active",
+      ]);
     });
     downloadCSV(rows, `${fileName}.csv`);
     setShowExportMenu(false);
@@ -89,7 +95,7 @@ export default function PoolsPage() {
       <div className="mb-6 flex justify-between items-start">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Pool Manager</h1>
-          <p className="text-sm text-gray-500 mt-0.5">온체인 유동성 풀 목록 및 현황 관리</p>
+          <p className="text-sm text-gray-500 mt-0.5">Monitor and manage on-chain liquidity pools</p>
         </div>
         <div className="relative">
           <button
@@ -110,7 +116,7 @@ export default function PoolsPage() {
               </button>
               <div className="border-t border-gray-100 my-1" />
               <button onClick={() => handleExport(currentPools, "all_pools")} className="w-full text-left px-4 py-2 text-[13px] hover:bg-gray-50 text-gray-700">
-                전체 내보내기
+                Export All
               </button>
             </div>
           )}
@@ -119,23 +125,22 @@ export default function PoolsPage() {
 
       {/* Summary Cards */}
       {!isLoading && (
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-100 rounded-xl p-5">
-            <div className="text-xs text-gray-500 mb-2">Total TVL (Active)</div>
-            <div className="text-2xl font-semibold text-gray-900">{fmtFullUSD(aggregates.totalTVL)}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          {/* TVL 카드 */}
+          <div className="col-span-2 sm:col-span-1 bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0">
+            <div className="text-xs text-gray-400 mb-2">Total TVL</div>
+            <div className="text-lg font-semibold text-gray-900 truncate">{fmtFullUSD(aggregates.totalTVL)}</div>
+            <div className="text-[10px] text-gray-300 mt-1">Active pools</div>
           </div>
-          <div className="col-span-3 bg-white border border-gray-100 rounded-xl p-5">
-            <div className="text-xs text-gray-500 mb-3">Token 별 집계 (Active 풀 기준)</div>
-            <div className="flex gap-8 overflow-x-auto scrollbar-none">
-              {aggregates.tokenTotals.map(t => (
-                <div key={t.symbol} className="shrink-0 pr-8 border-r border-gray-100 last:border-0 last:pr-0">
-                  <div className="text-[13px] font-medium text-gray-700">{t.symbol}</div>
-                  <div className="text-base font-semibold text-gray-900 mt-0.5">{fmtFull(t.amount, 2)}</div>
-                  <div className="text-xs text-gray-400">{fmtFullUSD(t.value)}</div>
-                </div>
-              ))}
+
+          {/* 토큰 개별 블록 */}
+          {aggregates.tokenTotals.map(t => (
+            <div key={t.symbol} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0 overflow-hidden">
+              <div className="text-[11px] font-semibold text-gray-400 mb-2">{t.symbol}</div>
+              <div className="text-[14px] font-semibold text-gray-900 truncate" title={String(t.amount)}>{fmtAmt(t.amount)}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5 truncate">{fmtFullUSD(t.value)}</div>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
@@ -144,13 +149,13 @@ export default function PoolsPage() {
         {/* Table Header Controls */}
         <div className="px-5 py-3.5 border-b border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-800">풀 목록</span>
+            <span className="text-sm font-medium text-gray-800">Pool List</span>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-              {displayedPools.length}개
+              {displayedPools.length}
             </span>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span className="text-[13px] text-gray-500">비활성 포함</span>
+            <span className="text-[13px] text-gray-500">Show Inactive</span>
             <button
               onClick={() => setShowInactive(!showInactive)}
               className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showInactive ? "bg-blue-600" : "bg-gray-200"}`}
@@ -206,14 +211,14 @@ export default function PoolsPage() {
                         {meta?.isValid ? (() => {
                           const isReversed = reversedRates.has(pool.id);
                           const rate = isReversed
-                            ? (Number(meta.price) !== 0 ? fmtFull(1 / Number(meta.price), 4) : "—")
-                            : fmtFull(meta.price, 4);
+                            ? (Number(meta.price) !== 0 ? fmtRate(1 / Number(meta.price)) : "—")
+                            : fmtRate(meta.price);
                           const base = isReversed ? meta.symbol1 : meta.symbol0;
                           return (
                             <button
                               onClick={() => toggleRate(pool.id)}
                               className="flex items-center justify-end gap-1.5 w-full group"
-                              title="클릭해서 반전"
+                              title="Click to reverse"
                             >
                               <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{rate}</span>
                               <span className="text-[11px] text-gray-400 whitespace-nowrap">/ 1 {base}</span>
@@ -226,14 +231,14 @@ export default function PoolsPage() {
                       </td>
                       <td className="px-3 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
-                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a0, 2)}</span>
+                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtAmt(a0)}</span>
                           <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a0 * prices0)}</span>
                           <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol0}</span>
                         </div>
                       </td>
                       <td className="px-3 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
-                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtFull(a1, 2)}</span>
+                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{fmtAmt(a1)}</span>
                           <span className="text-[11px] text-gray-400 whitespace-nowrap">{fmtFullUSD(a1 * prices1)}</span>
                           <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">{meta?.symbol1}</span>
                         </div>
@@ -247,7 +252,7 @@ export default function PoolsPage() {
                           {/* 활성/비활성 토글 */}
                           <button
                             onClick={() => togglePoolStatus(pool.id, pool.status)}
-                            title={isInactive ? "활성화" : "비활성화"}
+                            title={isInactive ? "Activate" : "Deactivate"}
                             className={[
                               "w-7 h-7 flex items-center justify-center rounded-lg transition-colors",
                               isInactive
@@ -276,20 +281,20 @@ export default function PoolsPage() {
                                 onClick={() => { removePool(pool.id); setConfirmDelete(null); }}
                                 className="text-[11px] font-medium px-2 py-0.5 rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
                               >
-                                삭제
+                                Delete
                               </button>
                               <button
                                 onClick={() => setConfirmDelete(null)}
                                 className="text-[11px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                               >
-                                취소
+                                Cancel
                               </button>
                             </div>
                           ) : (
                             <button
                               onClick={() => setConfirmDelete(pool.id)}
                               className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="삭제"
+                              title="Delete"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -302,7 +307,7 @@ export default function PoolsPage() {
               </tbody>
             </table>
             {displayedPools.length === 0 && (
-              <EmptyState message="등록된 풀이 없습니다" height="h-40" />
+              <EmptyState message="No pools registered" height="h-40" />
             )}
           </div>
         </div>

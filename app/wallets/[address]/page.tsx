@@ -4,14 +4,14 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getWalletData, getWalletLPPositions, fetchTokenPrices } from "@/lib/blockchain";
-import { getChain, fmtNum, fmtFull, fmtFullUSD } from "@/lib/utils";
+import { getChain, fmtAmt, fmtRate, fmtFull, fmtFullUSD } from "@/lib/utils";
 import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 
-/** 극단적으로 크거나 작은 가격(full-range 포지션 경계) → ∞ / 0 으로 표시 */
+/** Extreme range boundaries → ∞ / 0, otherwise smart rate formatting */
 const fmtPrice = (n: number): string => {
   if (!isFinite(n) || n > 1e15) return "∞";
   if (n <= 0 || n < 1e-10) return "0";
-  return fmtFull(n, 4);
+  return fmtRate(n);
 };
 
 export default function WalletDetailPage() {
@@ -54,7 +54,7 @@ export default function WalletDetailPage() {
           setTokenPrices(pMap);
         }
       } catch (e) {
-        setError("데이터를 불러오는데 실패했습니다");
+        setError("Failed to load data");
       } finally {
         setIsLoading(false);
       }
@@ -66,7 +66,7 @@ export default function WalletDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
         <Loader2 size={28} className="animate-spin text-blue-500" />
-        <p className="text-sm text-gray-400">온체인 유동성 스캔 중…</p>
+        <p className="text-sm text-gray-400">Scanning on-chain liquidity…</p>
       </div>
     );
   }
@@ -77,9 +77,9 @@ export default function WalletDetailPage() {
         <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
           <AlertTriangle size={20} className="text-red-500" />
         </div>
-        <p className="text-sm text-gray-500">{error || "지갑을 찾을 수 없습니다"}</p>
+        <p className="text-sm text-gray-500">{error || "Wallet not found"}</p>
         <button onClick={() => router.back()} className="text-sm text-blue-600 hover:underline">
-          뒤로가기
+          Go Back
         </button>
       </div>
     );
@@ -107,7 +107,7 @@ export default function WalletDetailPage() {
 
         {/* 지갑 주소 */}
         <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 shrink-0">
-          <span className="text-[11px] text-gray-400">주소</span>
+          <span className="text-[11px] text-gray-400">Address</span>
           <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">
             {data.address.slice(0, 6)}…{data.address.slice(-6)}
           </span>
@@ -129,16 +129,16 @@ export default function WalletDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white border border-gray-100 rounded-xl p-5">
-          <div className="text-xs text-gray-500 mb-2">LP 포지션</div>
+          <div className="text-xs text-gray-500 mb-2">LP Positions</div>
           <div className="text-xl font-semibold text-gray-900">{totalPositions}</div>
           <div className="text-[11px] text-gray-400 mt-0.5">
-            V2 {lpPositions.v2.length}개 · V3 {lpPositions.v3.length}개
+            V2 {lpPositions.v2.length} · V3 {lpPositions.v3.length}
           </div>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col justify-between">
           <div>
             <div className="text-xs text-gray-500 mb-2">LP Intelligence</div>
-            <div className="text-[12px] text-gray-400">실시간 포지션 재스캔</div>
+            <div className="text-[12px] text-gray-400">Real-time position rescan</div>
           </div>
           <button className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-medium rounded-lg transition-colors w-fit">
             <RefreshCw size={12} />
@@ -153,7 +153,7 @@ export default function WalletDetailPage() {
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-800">V3 Concentrated Liquidity</span>
             <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-              NFT · {lpPositions.v3.length}개
+              NFT · {lpPositions.v3.length}
             </span>
           </div>
 
@@ -195,7 +195,7 @@ export default function WalletDetailPage() {
                         <div className="text-[10px] text-gray-400">Price Range</div>
                         {hasAmounts && pos.currentPrice > 0 && (
                           <div className="text-[10px] text-gray-400">
-                            1 {sym0} = <span className="font-mono font-medium text-gray-600">{fmtFull(pos.currentPrice, 4)}</span> {sym1}
+                            1 {sym0} = <span className="font-mono font-medium text-gray-600">{fmtRate(pos.currentPrice)}</span> {sym1}
                           </div>
                         )}
                       </div>
@@ -220,22 +220,22 @@ export default function WalletDetailPage() {
                         {/* Deposit */}
                         <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-white border border-gray-100 rounded-lg px-2 py-2 text-[11px]">
                           <span className="text-gray-500 font-medium">Deposit</span>
-                          <span className="text-center text-gray-800 font-mono">{fmtFull(pos.amount0, 4)}</span>
-                          <span className="text-center text-gray-800 font-mono">{fmtFull(pos.amount1, 4)}</span>
+                          <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount0)}</span>
+                          <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount1)}</span>
                           <span className="text-right text-gray-600 font-medium">{fmtFullUSD(dep0Val + dep1Val)}</span>
                         </div>
                         {/* Rewards */}
                         <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-amber-50 border border-amber-100 rounded-lg px-2 py-2 text-[11px]">
                           <span className="text-amber-600 font-medium">Rewards</span>
-                          <span className="text-center text-gray-700 font-mono">{fmtFull(pos.fees0, 6)}</span>
-                          <span className="text-center text-gray-700 font-mono">{fmtFull(pos.fees1, 6)}</span>
+                          <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees0)}</span>
+                          <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees1)}</span>
                           <span className="text-right text-amber-700 font-medium">{fmtFullUSD(rew0Val + rew1Val)}</span>
                         </div>
                         {/* Total */}
                         <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-blue-50 border border-blue-100 rounded-lg px-2 py-2 text-[11px]">
                           <span className="text-blue-600 font-medium">Total</span>
-                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtFull(total0, 4)}</span>
-                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtFull(total1, 4)}</span>
+                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total0)}</span>
+                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total1)}</span>
                           <span className="text-right text-blue-600 font-semibold">{fmtFullUSD(totalVal)}</span>
                         </div>
                       </div>
@@ -250,7 +250,7 @@ export default function WalletDetailPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">
-              V3 포지션 없음
+              No V3 positions
             </div>
           )}
         </div>
@@ -260,7 +260,7 @@ export default function WalletDetailPage() {
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-800">V2 LP Holdings</span>
             <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-              ERC20 · {lpPositions.v2.length}개
+              ERC20 · {lpPositions.v2.length}
             </span>
           </div>
 
@@ -278,7 +278,7 @@ export default function WalletDetailPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-gray-900">{fmtNum(pos.formattedBalance, 4)}</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">LP 토큰</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">LP Token</div>
                     </div>
                   </div>
                 );
@@ -286,7 +286,7 @@ export default function WalletDetailPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">
-              V2 LP 토큰 없음
+              No V2 LP tokens
             </div>
           )}
         </div>

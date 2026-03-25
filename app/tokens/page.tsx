@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
-import { fmtFull, CHAINS } from "@/lib/utils";
-import { Loader2, ExternalLink } from "lucide-react";
+import { fmtTokenPrice, CHAINS, downloadCSV } from "@/lib/utils";
+import { Loader2, ExternalLink, Download } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function TokensPage() {
@@ -42,19 +42,41 @@ export default function TokensPage() {
     return p && Number(p) > 0 ? p : null;
   };
 
+  const handleExport = () => {
+    const rows: (string | number)[][] = [
+      ["chain_id", "address", "symbol", "name", "decimals", "price_usd"],
+    ];
+    currentTokens.forEach(t => {
+      const price = prices[t.address.toLowerCase()] ?? "";
+      rows.push([t.chain_id, t.address, t.symbol, t.name, t.decimals, price]);
+    });
+    downloadCSV(rows, "tokens.csv");
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Token Manager</h1>
-          <p className="text-sm text-gray-500 mt-0.5">위믹스 생태계 주요 토큰 메타데이터 관리</p>
+          <p className="text-sm text-gray-500 mt-0.5">Token registry with live price data</p>
         </div>
-        {isFetchingPrices && (
-          <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
-            <Loader2 size={12} className="animate-spin" />
-            가격 조회 중…
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {isFetchingPrices && (
+            <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
+              <Loader2 size={12} className="animate-spin" />
+              Fetching prices…
+            </div>
+          )}
+          {currentTokens.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-900 hover:bg-black text-white text-[13px] font-medium rounded-lg transition-colors"
+            >
+              <Download size={13} />
+              Export
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -63,8 +85,8 @@ export default function TokensPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 w-10 text-center">#</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500">심볼 / 이름</th>
-                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">가격 (USD)</th>
+                <th className="px-5 py-3 text-[11px] font-medium text-gray-500">Symbol / Name</th>
+                <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-right">Price (USD)</th>
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-center">Decimals</th>
                 <th className="px-5 py-3 text-[11px] font-medium text-gray-500 text-center">Explorer</th>
               </tr>
@@ -84,7 +106,7 @@ export default function TokensPage() {
                         <span className="text-[11px] text-gray-300">—</span>
                       ) : price ? (
                         <span className="text-sm font-semibold text-blue-600">
-                          ${fmtFull(price, 4)}
+                          ${fmtTokenPrice(price)}
                         </span>
                       ) : (
                         <span className="text-[12px] text-gray-300 font-mono">—</span>
@@ -112,7 +134,7 @@ export default function TokensPage() {
             </tbody>
           </table>
         ) : (
-          <EmptyState message="등록된 토큰이 없습니다" height="h-48" />
+          <EmptyState message="No tokens registered" height="h-48" />
         )}
       </div>
     </div>

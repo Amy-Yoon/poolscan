@@ -30,9 +30,9 @@ function useRelativeTime(date: Date | null) {
     if (!date) { setLabel(""); return; }
     const update = () => {
       const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-      if (diff < 60) setLabel(`${diff}초 전`);
-      else if (diff < 3600) setLabel(`${Math.floor(diff / 60)}분 전`);
-      else setLabel(date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }));
+      if (diff < 60) setLabel(`${diff}s ago`);
+      else if (diff < 3600) setLabel(`${Math.floor(diff / 60)}m ago`);
+      else setLabel(date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }));
     };
     update();
     const id = setInterval(update, 30000);
@@ -41,7 +41,12 @@ function useRelativeTime(date: Date | null) {
   return label;
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { chainId, setChainId, refreshData, isRefreshing, refreshProgress, lastUpdated } = useApp();
   const [chainOpen, setChainOpen] = useState(false);
@@ -49,7 +54,11 @@ export function Sidebar() {
   const relTime = useRelativeTime(lastUpdated);
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[220px] bg-white border-r border-gray-100 flex flex-col z-50">
+    <aside className={[
+      "fixed left-0 top-0 bottom-0 w-[220px] bg-white border-r border-gray-100 flex flex-col z-50",
+      "transition-transform duration-300 ease-in-out",
+      isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+    ].join(" ")}>
       {/* Logo */}
       <div className="px-5 h-[56px] flex items-center border-b border-gray-100">
         <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -129,7 +138,7 @@ export function Sidebar() {
           ].join(" ")}
         >
           <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
-          {isRefreshing ? "업데이트 중…" : "데이터 새로고침"}
+          {isRefreshing ? "Updating…" : "Refresh"}
         </button>
 
         {/* 프로그레스 바 */}
@@ -143,14 +152,14 @@ export function Sidebar() {
         )}
 
         {/* 오류 메시지 */}
-        {!isRefreshing && refreshProgress.startsWith("오류") && (
+        {!isRefreshing && refreshProgress.startsWith("Error") && (
           <p className="text-[10px] text-red-400 text-center truncate">{refreshProgress}</p>
         )}
 
         <div className="text-center text-[11px] text-gray-400">
           {lastUpdated
-            ? <>마지막 업데이트: <span className="text-gray-500 font-medium">{relTime}</span></>
-            : <span className="text-gray-400">캐시 없음 — 새로고침 필요</span>
+            ? <>Updated <span className="text-gray-500 font-medium">{relTime}</span></>
+            : <span className="text-gray-400">No cache — refresh required</span>
           }
         </div>
       </div>
