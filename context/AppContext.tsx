@@ -109,7 +109,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const next = { ...prev };
         HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id).forEach(st => {
           if (!next[st.address.toLowerCase()]) {
-            next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+            next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: st.decimals };
           }
         });
         return next;
@@ -147,7 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const next = { ...prev };
           HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id).forEach(st => {
             if (!next[st.address.toLowerCase()]) {
-              next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+              next[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: st.decimals };
             }
           });
           return next;
@@ -274,7 +274,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 5d. 스테이블 토큰도 enrichedTokenMeta에 심볼 보충
       for (const st of HARDCODED_STABLE_TOKENS.filter(t => t.chain_id === id)) {
         if (!enrichedTokenMeta[st.address.toLowerCase()]) {
-          enrichedTokenMeta[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: 18 };
+          enrichedTokenMeta[st.address.toLowerCase()] = { symbol: st.symbol, name: st.symbol, decimals: st.decimals };
         }
       }
 

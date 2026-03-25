@@ -7,6 +7,7 @@
 export interface StableToken {
   address: string;
   symbol: string;
+  decimals: number;
   chain_id: 1111 | 1112;
   price: "1";
 }
@@ -16,12 +17,14 @@ export const HARDCODED_STABLE_TOKENS: StableToken[] = [
   {
     address: "0x8E81fCc2d4A3bAa0eE9044E0D7E36F59C9BbA9c1",
     symbol: "WEMIX$",
+    decimals: 18,
     chain_id: 1111,
     price: "1",
   },
   {
     address: "0x44bB111010DfFfb3695F9a1B66aa879976199e7b",
     symbol: "USDC.e",
+    decimals: 6,
     chain_id: 1111,
     price: "1",
   },
@@ -29,12 +32,14 @@ export const HARDCODED_STABLE_TOKENS: StableToken[] = [
   {
     address: "0xAe81b9fFCde5Ab7673dD4B2f5c648a5579430B17",
     symbol: "WEMIX$",
+    decimals: 18,
     chain_id: 1112,
     price: "1",
   },
   {
     address: "0x02F7a788ad41d74ec3Ba4613124b6310E33CC1B5",
     symbol: "USDC.e",
+    decimals: 6,
     chain_id: 1112,
     price: "1",
   },
