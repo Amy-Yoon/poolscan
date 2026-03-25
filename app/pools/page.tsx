@@ -103,24 +103,29 @@ export default function PoolsPage() {
     ]];
     list.forEach(p => {
       const meta = metadata[p.address.toLowerCase()];
-      const t0Price = Number(tokenPrices[meta?.token0?.toLowerCase()] || 0);
-      const t1Price = Number(tokenPrices[meta?.token1?.toLowerCase()] || 0);
-      const a0 = Number(meta?.t0Amt || 0);
-      const a1 = Number(meta?.t1Amt || 0);
+      // on-chain metadata 우선, 없으면 DB 값 fallback
+      const type    = meta?.type  ?? p.type  ?? "";
+      const fee     = meta?.fee   ?? p.fee   ?? "";
+      const t0Addr  = meta?.token0 ?? p.token0 ?? "";
+      const t1Addr  = meta?.token1 ?? p.token1 ?? "";
+      const t0Price = Number(tokenPrices[t0Addr.toLowerCase()] || 0);
+      const t1Price = Number(tokenPrices[t1Addr.toLowerCase()] || 0);
+      const a0  = Number(meta?.t0Amt || 0);
+      const a1  = Number(meta?.t1Amt || 0);
       const rate = meta?.isValid && meta.price ? Number(meta.price) : null;
       rows.push([
         p.chain_id,
         p.address,
-        p.type ?? "",
-        p.fee ?? "",
-        meta?.symbol0 ?? (p.token0 ?? ""),
-        p.token0 ?? "",
+        type,
+        fee,
+        meta?.symbol0 ?? "",
+        t0Addr,
         meta?.isValid ? a0 : "",
-        meta?.isValid ? a0 * t0Price : "",
-        meta?.symbol1 ?? (p.token1 ?? ""),
-        p.token1 ?? "",
+        meta?.isValid && t0Price ? a0 * t0Price : "",
+        meta?.symbol1 ?? "",
+        t1Addr,
         meta?.isValid ? a1 : "",
-        meta?.isValid ? a1 * t1Price : "",
+        meta?.isValid && t1Price ? a1 * t1Price : "",
         rate !== null ? rate : "",
         rate !== null && rate !== 0 ? 1 / rate : "",
         meta?.isValid ? (meta.tvl ?? "") : "",

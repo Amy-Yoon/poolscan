@@ -35,7 +35,7 @@ export interface DBPool {
   created_at: string;
   address:    string;
   chain_id:   number;
-  type:       "v2" | "v3";
+  type:       "v2" | "v3" | null;
   fee:        number | null;
   token0:     string;
   token1:     string;

@@ -197,7 +197,7 @@ export function importConfig(json: string): { pools: number; wallets: number; to
       created_at: (p as any).created_at ?? now,
       address: p.address,
       chain_id: p.chain_id,
-      type: (p as any).type ?? "v3",
+      type: (p as any).type ?? null,
       fee: (p as any).fee ?? null,
       token0: (p as any).token0 ?? "",
       token1: (p as any).token1 ?? "",
