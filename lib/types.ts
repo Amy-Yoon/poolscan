@@ -18,16 +18,15 @@ export interface Chain {
   knownPoolAddresses?: { address: string; status: "a" | "i" }[];
 }
 
-// ── Supabase DB rows ────────────────────────────────────────
+// ── DB rows (minimal — only what we persist) ────────────────
 
 export interface DBToken {
   id:         string;
   created_at: string;
   address:    string;
   chain_id:   number;
-  symbol:     string;
-  name:       string;
-  decimals:   number;
+  /** Fixed price override in USD (null = use on-chain oracle). Only set for stable tokens. */
+  price:      string | null;
 }
 
 export interface DBPool {
@@ -35,11 +34,6 @@ export interface DBPool {
   created_at: string;
   address:    string;
   chain_id:   number;
-  type:       "v2" | "v3" | null;
-  fee:        number | null;
-  token0:     string;
-  token1:     string;
-  label:      string | null;
   status:     "a" | "i";
 }
 
@@ -51,27 +45,12 @@ export interface DBWallet {
   label:      string | null;
 }
 
-// ── On-chain / computed data ────────────────────────────────
+// ── On-chain / computed data (in-memory only) ───────────────
 
 export interface TokenMeta {
   symbol:   string;
   name:     string;
   decimals: number;
-}
-
-/** Pool with live on-chain data merged in */
-export interface EnrichedPool extends DBPool {
-  token0Meta:   TokenMeta | null;
-  token1Meta:   TokenMeta | null;
-  // on-chain
-  sqrtPriceX96: string | null;
-  currentTick:  number | null;
-  exchangeRate: number | null;
-  token0Price:  number | null;
-  token1Price:  number | null;
-  token0Amount: number | null;
-  token1Amount: number | null;
-  tvl:          number | null;
 }
 
 export interface LPPosition {

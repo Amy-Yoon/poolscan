@@ -104,7 +104,7 @@ export default function DashboardPage() {
                     {/* 이름 + 배지 */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="text-sm font-medium text-gray-900 whitespace-nowrap truncate">
-                        {meta?.isValid ? `${meta.symbol0} / ${meta.symbol1}` : (pool.label || pool.address.slice(0, 10) + "…")}
+                        {meta?.isValid ? `${meta.symbol0} / ${meta.symbol1}` : pool.address.slice(0, 10) + "…"}
                       </span>
                       {meta?.isValid && (
                         <>

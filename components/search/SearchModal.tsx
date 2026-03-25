@@ -19,23 +19,18 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
     setIsAdding(true);
     try {
       if (result.type === "token") {
+        // Only store address + chain_id; metadata comes from on-chain at runtime
         await upsertToken({
           address: result.address,
           chain_id: result.chainId,
-          symbol: result.data.symbol,
-          name: result.data.name,
-          decimals: result.data.decimals,
+          price: null,
         });
       } else if (result.type === "pool_v2" || result.type === "pool_v3") {
+        // Only store address + chain_id + status; metadata comes from on-chain
         await insertPool({
           address: result.address,
           chain_id: result.chainId,
-          type: result.type === "pool_v3" ? "v3" : "v2",
-          fee: result.data.fee,
-          token0: result.data.token0,
-          token1: result.data.token1,
-          label: label || result.data.name || "WESWAP V3 Pool",
-          status: "a", // All manually added pools are active
+          status: "a",
         });
       } else if (result.type === "wallet") {
         await insertWallet({
@@ -55,6 +50,8 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
       setIsAdding(false);
     }
   };
+
+  const isWallet = result.type === "wallet";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -121,7 +118,7 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
                 </div>
               )}
 
-              {result.type === "wallet" && (
+              {isWallet && (
                 <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-[12px] font-medium text-blue-600 italic">
                   This address appears to be an EOA (externally owned account) with no contract code.
                 </div>
@@ -129,14 +126,15 @@ export function SearchModal({ result, onClose }: SearchModalProps) {
             </div>
           </div>
 
-          {result.type !== "unknown" && (
+          {/* Label input: only for wallets */}
+          {isWallet && result.type !== "unknown" && (
             <div className="mb-8">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 px-1">
-                Custom Label (optional)
+                Wallet Label (optional)
               </label>
               <input
                 type="text"
-                placeholder={result.type === "wallet" ? "e.g. My Main Wallet" : "e.g. WEMIX-USDC Pool"}
+                placeholder="e.g. My Main Wallet"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full h-12 bg-white border border-gray-200 rounded-2xl px-5 text-[13px] font-bold focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-gray-300 shadow-sm"

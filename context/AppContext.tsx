@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { DBPool, DBWallet, DBToken, ChainId } from "@/lib/types";
-import { getPools, getWallets, getTokens, getPoolsSync, getWalletsSync, getTokensSync, updatePoolStatus as dbUpdatePoolStatus, deletePool as dbDeletePool, deleteWallet as dbDeleteWallet, syncPools } from "@/lib/db";
+import { DBPool, DBWallet, DBToken, TokenMeta, ChainId } from "@/lib/types";
+import { getPools, getWallets, getTokens, getPoolsSync, getWalletsSync, getTokensSync, updatePoolStatus as dbUpdatePoolStatus, deletePool as dbDeletePool, deleteWallet as dbDeleteWallet } from "@/lib/db";
 import { analyzeAddress, fetchPoolsMetadata } from "@/lib/blockchain";
 import { CHAINS } from "@/lib/utils";
 
@@ -12,6 +12,8 @@ interface AppContextType {
   pools: DBPool[];
   wallets: DBWallet[];
   tokens: DBToken[];
+  /** In-memory token metadata (symbol/name/decimals) fetched on-chain. Never persisted in DB. */
+  tokenMetadata: Record<string, TokenMeta>;
   isLoading: boolean;
   isRefreshing: boolean;
   refreshProgress: string;
@@ -35,30 +37,26 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // ── Cache helpers ─────────────────────────────────────────────
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 function cacheKey(chainId: number) { return `poolscan-cache-${CACHE_VERSION}-${chainId}`; }
 
-function saveCache(chainId: number, data: { pools: DBPool[]; wallets: DBWallet[]; tokens: DBToken[]; metadata: Record<string, any>; lastUpdated: string }) {
+function saveCache(chainId: number, data: { pools: DBPool[]; wallets: DBWallet[]; tokens: DBToken[]; metadata: Record<string, any>; tokenMetadata: Record<string, TokenMeta>; lastUpdated: string }) {
   try { localStorage.setItem(cacheKey(chainId), JSON.stringify(data)); } catch {}
 }
 
-function loadCache(chainId: number): { pools: DBPool[]; wallets: DBWallet[]; tokens: DBToken[]; metadata: Record<string, any>; lastUpdated: string } | null {
+function loadCache(chainId: number): { pools: DBPool[]; wallets: DBWallet[]; tokens: DBToken[]; metadata: Record<string, any>; tokenMetadata: Record<string, TokenMeta>; lastUpdated: string } | null {
   try {
     const raw = localStorage.getItem(cacheKey(chainId));
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-// ── Token lists ───────────────────────────────────────────────
-const TESTNET_TOKENS: string[] = [];
-const MAINNET_TOKENS: string[] = [];
-
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [chainId, setChainIdState] = useState<ChainId>(1111);
   const [pools, setPools] = useState<DBPool[]>([]);
   const [wallets, setWallets] = useState<DBWallet[]>([]);
   const [tokens, setTokens] = useState<DBToken[]>([]);
+  const [tokenMetadata, setTokenMetadata] = useState<Record<string, TokenMeta>>({});
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,12 +73,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setWallets(cached.wallets);
       setTokens(cached.tokens);
       setMetadata(cached.metadata);
+      setTokenMetadata(cached.tokenMetadata ?? {});
       setLastUpdated(new Date(cached.lastUpdated));
-      // 캐시에서 로드된 풀을 poolscan_pools에도 동기화 (export 시 누락 방지)
-      syncPools(cached.pools);
       return true;
     }
-    // 캐시 없으면 localStorage DB에서 직접 로드 (가져오기 후 체인 전환 시 대응)
+    // 캐시 없으면 localStorage DB에서 직접 로드
     const dbPools = getPoolsSync(id);
     const dbWallets = getWalletsSync(id);
     const dbTokens = getTokensSync(id);
@@ -88,6 +85,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setWallets(dbWallets);
     setTokens(dbTokens);
     setMetadata({});
+    setTokenMetadata({});
     setLastUpdated(null);
     return false;
   }, []);
@@ -100,7 +98,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     loadFromCache(id);
     setIsLoading(false);
-    // refreshData는 chainIdRef.current를 참조하므로 setState 반영 후 실행
     pendingRefreshRef.current = true;
   }, [loadFromCache]);
 
@@ -118,31 +115,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (pendingRefreshRef.current && isMountedRef.current) {
       pendingRefreshRef.current = false;
-      // 짧은 지연 후 실행 (state 업데이트 완료 대기)
       const t = setTimeout(() => refreshData(), 50);
       return () => clearTimeout(t);
     }
   }, [chainId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scanTokens = useCallback(async (addresses: string[], id: ChainId) => {
-    const results: DBToken[] = [];
+  /** Scan token addresses on-chain for symbol/name/decimals.
+   *  Returns a metadata map — nothing is persisted in DB. */
+  const scanTokenMetadata = useCallback(async (addresses: string[], id: ChainId): Promise<Record<string, TokenMeta>> => {
+    const result: Record<string, TokenMeta> = {};
     const batchSize = 8;
     for (let i = 0; i < addresses.length; i += batchSize) {
       const batch = addresses.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(async (addr) => {
+      await Promise.allSettled(batch.map(async (addr) => {
         try {
           const res = await analyzeAddress(addr, id);
-          if (res.type === "token") return {
-            id: `token-${id}-${addr}`, address: addr, chain_id: id,
-            symbol: res.data.symbol, name: res.data.name, decimals: res.data.decimals,
-            created_at: new Date().toISOString()
-          } as DBToken;
+          if (res.type === "token") {
+            result[addr.toLowerCase()] = {
+              symbol:   res.data.symbol,
+              name:     res.data.name,
+              decimals: res.data.decimals,
+            };
+          }
         } catch {}
-        return null;
       }));
-      results.push(...(batchResults.filter(Boolean) as DBToken[]));
     }
-    return results;
+    return result;
   }, []);
 
   // 온체인 데이터 전체 갱신 (Refresh 버튼 전용)
@@ -153,61 +151,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRefreshPercent(0);
     setRefreshProgress("Loading DB data…");
     try {
-      // 1. DB 풀 목록 로드
+      // 1. DB 로드 (minimal: address + chain_id + status/label/price)
       const [dbPools, dbWallets, dbTokens] = await Promise.all([
         getPools(id), getWallets(id), getTokens(id)
       ]);
-      const mergedPools = [...dbPools];
-      syncPools(mergedPools);
       setRefreshPercent(10);
 
-      // 2. 토큰 스캔 — symbol이 비어있는 등록 토큰들의 메타데이터를 온체인에서 채움
+      // 2. 토큰 메타데이터 온체인 스캔 (DB에는 저장 안 함)
       setRefreshProgress("Fetching token metadata…");
       setRefreshPercent(20);
-      const emptyTokenAddrs = dbTokens
-        .filter(t => !t.symbol || t.symbol.trim() === "")
-        .map(t => t.address);
-      const scannedTokens = emptyTokenAddrs.length > 0 ? await scanTokens(emptyTokenAddrs, id) : [];
-      // scanned 결과로 기존 레코드 업데이트 (symbol/name/decimals 덮어쓰기)
-      const mergedTokens = dbTokens.map(t => {
-        const fetched = scannedTokens.find(s => s.address.toLowerCase() === t.address.toLowerCase());
-        return fetched ? { ...t, symbol: fetched.symbol, name: fetched.name, decimals: fetched.decimals } : t;
-      });
-      // 업데이트된 토큰을 localStorage에도 반영
-      if (scannedTokens.length > 0) {
-        const { upsertToken } = await import("@/lib/db");
-        await Promise.all(mergedTokens.filter(t => t.symbol).map(t => upsertToken(t)));
-      }
+      const scannedMeta = dbTokens.length > 0 ? await scanTokenMetadata(dbTokens.map(t => t.address), id) : {};
+
+      // 3. Pool metadata에서도 토큰 심볼 보충 (pools/page.tsx 계산용)
+      //    → 아직 pool meta가 없으면 빈 map, 이후 poolMeta 수집 후 보충
       setRefreshPercent(35);
 
-      // 3. Active 풀 메타데이터 먼저 (UI 빠르게 업데이트)
-      const activePools = mergedPools.filter(p => p.status === "a" || !p.status);
-      const inactivePools = mergedPools.filter(p => p.status === "i");
+      // 4. Active 풀 메타데이터
+      const activePools = dbPools.filter(p => p.status === "a" || !p.status);
+      const inactivePools = dbPools.filter(p => p.status === "i");
 
       setRefreshProgress(`풀 데이터 조회 중… (${activePools.length}개)`);
       setRefreshPercent(40);
       const activeMetaResults = await fetchPoolsMetadata(activePools.map(p => p.address), id);
       const metaMap: Record<string, any> = {};
       activeMetaResults.forEach(r => { metaMap[r.address.toLowerCase()] = r; });
+
+      // 5. Pool metadata에서 토큰 심볼/decimals 보충 (scanned에 없는 토큰 커버)
+      const enrichedTokenMeta = { ...scannedMeta };
+      for (const r of activeMetaResults) {
+        if (!r.isValid) continue;
+        if (r.token0 && !enrichedTokenMeta[r.token0.toLowerCase()]) {
+          enrichedTokenMeta[r.token0.toLowerCase()] = { symbol: r.symbol0 ?? "?", name: r.symbol0 ?? "?", decimals: 18 };
+        }
+        if (r.token1 && !enrichedTokenMeta[r.token1.toLowerCase()]) {
+          enrichedTokenMeta[r.token1.toLowerCase()] = { symbol: r.symbol1 ?? "?", name: r.symbol1 ?? "?", decimals: 18 };
+        }
+      }
       setRefreshPercent(85);
 
       const now = new Date();
-      setPools(mergedPools);
+      setPools(dbPools);
       setWallets(dbWallets);
-      setTokens(mergedTokens);
+      setTokens(dbTokens);
       setMetadata(metaMap);
+      setTokenMetadata(enrichedTokenMeta);
       setLastUpdated(now);
 
-      // 4. 캐시 저장
+      // 6. 캐시 저장
       saveCache(id, {
-        pools: mergedPools, wallets: dbWallets, tokens: mergedTokens,
-        metadata: metaMap, lastUpdated: now.toISOString()
+        pools: dbPools, wallets: dbWallets, tokens: dbTokens,
+        metadata: metaMap, tokenMetadata: enrichedTokenMeta, lastUpdated: now.toISOString()
       });
 
       setRefreshPercent(100);
       setRefreshProgress("Done!");
 
-      // 5. Inactive 풀 백그라운드 조회
+      // 7. Inactive 풀 백그라운드 조회
       if (inactivePools.length > 0) {
         setRefreshProgress(`비활성 풀 백그라운드 조회 중… (${inactivePools.length}개)`);
         fetchPoolsMetadata(inactivePools.map(p => p.address), id).then(inactiveResults => {
@@ -215,8 +214,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const updated = { ...prev };
             inactiveResults.forEach(r => { updated[r.address.toLowerCase()] = r; });
             saveCache(id, {
-              pools: mergedPools, wallets: dbWallets, tokens: mergedTokens,
-              metadata: updated, lastUpdated: now.toISOString()
+              pools: dbPools, wallets: dbWallets, tokens: dbTokens,
+              metadata: updated, tokenMetadata: enrichedTokenMeta, lastUpdated: now.toISOString()
             });
             return updated;
           });
@@ -228,10 +227,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setRefreshPercent(-1);
     } finally {
       setIsRefreshing(false);
-      // 완료 후 잠시 뒤 percent 초기화
       setTimeout(() => setRefreshPercent(-1), 800);
     }
-  }, [isRefreshing, scanTokens]);
+  }, [isRefreshing, scanTokenMetadata]);
 
   const togglePoolStatus = async (id: string, currentStatus?: string) => {
     const newStatus = currentStatus === "i" ? "a" : "i";
@@ -255,7 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error("Failed to delete wallet", e); }
   };
 
-  // 기본 데이터 가져오기 (어느 페이지에서든 호출 가능)
+  // 기본 데이터 가져오기
   const [isImportingDefault, setIsImportingDefault] = useState(false);
   const importDefaultData = useCallback(async () => {
     if (isImportingDefault || isRefreshing) return;
@@ -286,7 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      chainId, setChainId, pools, wallets, tokens,
+      chainId, setChainId, pools, wallets, tokens, tokenMetadata,
       isLoading, isRefreshing, refreshProgress, refreshPercent, lastUpdated,
       refreshData, metadata, summary, togglePoolStatus, removePool, removeWallet,
       importDefaultData, isImportingDefault,

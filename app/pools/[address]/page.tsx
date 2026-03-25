@@ -34,8 +34,8 @@ export default function PoolDetailPage() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const type = dbPool?.type || "v3";
-        const enriched = await getPoolData(address, chainId, type);
+        // type is determined on-chain by getPoolData; DB no longer stores it
+        const enriched = await getPoolData(address, chainId, "v3");
         setData(enriched);
         const pResults = await fetchTokenPrices([enriched.token0.address, enriched.token1.address], chainId);
         const pMap: Record<string, string> = {};

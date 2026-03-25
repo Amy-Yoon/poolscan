@@ -8,7 +8,7 @@ import { Loader2, ExternalLink, Download } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function TokensPage() {
-  const { tokens, pools, chainId, isLoading, metadata } = useApp();
+  const { tokens, pools, chainId, metadata, tokenMetadata } = useApp();
   const explorerUrl = CHAINS.find(c => c.id === chainId)?.explorer || "";
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
@@ -21,11 +21,16 @@ export default function TokensPage() {
       setIsFetchingPrices(true);
       try {
         const addrs = currentTokens.map(t => t.address);
-        const results = await fetchTokenPrices(addrs, chainId, pools, currentTokens, metadata);
-        console.log("[TokenManager] price results:", results.slice(0, 3));
+        // Build registeredTokens list from tokenMetadata for symbol recognition
+        const regTokens = Object.entries(tokenMetadata).map(([addr, m]) => ({ address: addr, symbol: m.symbol }));
+        const results = await fetchTokenPrices(addrs, chainId, pools, regTokens, metadata);
         const priceMap: Record<string, string> = {};
         results.forEach(r => {
           priceMap[r.address.toLowerCase()] = r.price;
+        });
+        // Apply fixed price overrides from DB
+        currentTokens.forEach(t => {
+          if (t.price) priceMap[t.address.toLowerCase()] = t.price;
         });
         setPrices(priceMap);
       } catch (e) {
@@ -35,7 +40,7 @@ export default function TokensPage() {
       }
     }
     loadPrices();
-  }, [chainId, tokens]);
+  }, [chainId, tokens, tokenMetadata]);
 
   const getPrice = (addr: string) => {
     const p = prices[addr.toLowerCase()];
@@ -47,8 +52,16 @@ export default function TokensPage() {
       ["chain_id", "address", "symbol", "name", "decimals", "price_usd"],
     ];
     currentTokens.forEach(t => {
+      const meta = tokenMetadata[t.address.toLowerCase()];
       const price = prices[t.address.toLowerCase()] ?? "";
-      rows.push([t.chain_id, t.address, t.symbol, t.name, t.decimals, price]);
+      rows.push([
+        t.chain_id,
+        t.address,
+        meta?.symbol ?? "",
+        meta?.name ?? "",
+        meta?.decimals ?? "",
+        price,
+      ]);
     });
     downloadCSV(rows, "tokens.csv");
   };
@@ -94,13 +107,14 @@ export default function TokensPage() {
             </thead>
             <tbody>
               {currentTokens.map((token, idx) => {
+                const meta = tokenMetadata[token.address.toLowerCase()];
                 const price = getPrice(token.address);
                 return (
                   <tr key={token.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3.5 text-[12px] text-gray-400 text-center">{idx + 1}</td>
                     <td className="px-5 py-3.5">
-                      <div className="text-sm font-medium text-gray-900">{token.symbol}</div>
-                      <div className="text-[12px] text-gray-400 mt-0.5">{token.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{meta?.symbol ?? <span className="text-gray-300 italic">—</span>}</div>
+                      <div className="text-[12px] text-gray-400 mt-0.5">{meta?.name ?? ""}</div>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       {isFetchingPrices && !price ? (
@@ -113,7 +127,9 @@ export default function TokensPage() {
                         <span className="text-[12px] text-gray-300 font-mono">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-[13px] text-gray-700 text-center font-mono">{token.decimals}</td>
+                    <td className="px-5 py-3.5 text-[13px] text-gray-700 text-center font-mono">
+                      {meta?.decimals ?? <span className="text-gray-300">—</span>}
+                    </td>
                     <td className="px-5 py-3.5 text-center">
                       {explorerUrl ? (
                         <a

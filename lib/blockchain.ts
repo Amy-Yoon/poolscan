@@ -777,23 +777,10 @@ export async function getWalletLPPositions(walletAddress: string, chainId: Chain
   const user = walletAddress as `0x${string}`;
 
   // 1. Scan V2 Positions
-  // Build deduplicated address list: DB-registered V2 pools + all known pool addresses
+  // Only use knownPoolAddresses for V2 scanning — DB pools no longer store type.
   const v2v3Positions: { v2: any[], v3: any[] } = { v2: [], v3: [] };
 
-  const dbV2Pools = pools.filter(p => p.type === "v2" && p.chain_id === chainId);
-  const knownAddrs = (chain.knownPoolAddresses || []).map(p => p.address.toLowerCase());
-  const dbV2Addrs = new Set(dbV2Pools.map(p => p.address.toLowerCase()));
-
-  // Build scan list: db V2 pools + known pool addresses not already in db V2
-  // (known pool addresses include both V2 and V3, we'll detect by trying token0/token1 + getReserves)
-  const knownOnlyAddrs = (chain.knownPoolAddresses || [])
-    .filter(p => !dbV2Addrs.has(p.address.toLowerCase()))
-    .map(p => p.address);
-
-  const allScanAddrs = [
-    ...dbV2Pools.map(p => p.address),
-    ...knownOnlyAddrs,
-  ];
+  const allScanAddrs = (chain.knownPoolAddresses || []).map(p => p.address);
 
   if (allScanAddrs.length > 0) {
     const balanceAbi = parseAbi(["function balanceOf(address) view returns (uint256)"]);
@@ -826,18 +813,11 @@ export async function getWalletLPPositions(walletAddress: string, chainId: Chain
         const dbPool = pools.find(p => p.address.toLowerCase() === poolAddr.toLowerCase());
 
         try {
-          // Step 2a: get token0/token1 addresses (DB or on-chain)
-          let t0Addr: string;
-          let t1Addr: string;
-          if (dbPool?.token0 && dbPool?.token1) {
-            t0Addr = dbPool.token0;
-            t1Addr = dbPool.token1;
-          } else {
-            [t0Addr, t1Addr] = await Promise.all([
-              client.readContract({ address: poolAddrHex, abi: v2TokenAbi, functionName: "token0" }),
-              client.readContract({ address: poolAddrHex, abi: v2TokenAbi, functionName: "token1" }),
-            ]) as [string, string];
-          }
+          // Step 2a: get token0/token1 addresses on-chain (DB no longer stores these)
+          const [t0Addr, t1Addr] = await Promise.all([
+            client.readContract({ address: poolAddrHex, abi: v2TokenAbi, functionName: "token0" }),
+            client.readContract({ address: poolAddrHex, abi: v2TokenAbi, functionName: "token1" }),
+          ]) as [string, string];
 
           // Step 2b: fetch everything in parallel
           const [sym0Res, sym1Res, dec0Res, dec1Res, reservesRes, totalSupplyRes] = await Promise.allSettled([
@@ -868,16 +848,18 @@ export async function getWalletLPPositions(walletAddress: string, chainId: Chain
           }
 
           v2v3Positions.v2.push({
-            pool: dbPool || {
-              id: `known-${poolAddr}`,
+            // Runtime pool object — contains on-chain enriched data for UI rendering.
+            // type/fee/token0/token1/label are runtime-only; DB only stores address+chain+status.
+            pool: {
+              id: dbPool?.id || `known-${poolAddr}`,
               address: poolAddr,
               chain_id: chainId,
+              status: dbPool?.status || (chain.knownPoolAddresses?.find(p => p.address.toLowerCase() === poolAddr.toLowerCase())?.status) || "a",
               type: "v2",
               fee: 0.25,
               token0: t0Addr,
               token1: t1Addr,
               label: `${sym0} / ${sym1}`,
-              status: (chain.knownPoolAddresses?.find(p => p.address.toLowerCase() === poolAddr.toLowerCase())?.status) || "a",
             },
             balance: balance.toString(),
             formattedBalance: formatUnits(balance, 18),

@@ -12,7 +12,6 @@ interface AddPoolModalProps {
 export function AddPoolModal({ onClose }: AddPoolModalProps) {
   const { chainId, refreshData } = useApp();
   const [address, setAddress] = useState("");
-  const [label, setLabel] = useState("");
   const { info, loading, error } = usePoolInfo(address, chainId);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -23,11 +22,6 @@ export function AddPoolModal({ onClose }: AddPoolModalProps) {
       await insertPool({
         address,
         chain_id: chainId,
-        type: info.type,
-        fee: info.fee,
-        token0: info.token0,
-        token1: info.token1,
-        label: label || `${info.token0Symbol}/${info.token1Symbol}`,
         status: "a",
       });
       refreshData();
@@ -101,19 +95,6 @@ export function AddPoolModal({ onClose }: AddPoolModalProps) {
             {!address && (
               <div className="text-center text-sm text-gray-300">Awaiting address input</div>
             )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-              Custom Label (Optional)
-            </label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. My Favorite WEMIX Pair"
-              className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            />
           </div>
         </div>
 

@@ -11,7 +11,7 @@ type SortKey = "pool" | "rate" | "token0" | "token1" | "tvl";
 type SortDir = "asc" | "desc";
 
 export default function PoolsPage() {
-  const { pools, tokens, chainId, isLoading, togglePoolStatus, removePool, metadata } = useApp();
+  const { pools, chainId, isLoading, togglePoolStatus, removePool, metadata } = useApp();
   const chain = getChain(chainId);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
@@ -50,8 +50,8 @@ export default function PoolsPage() {
       });
       if (allTokens.size === 0) return;
       try {
-        const chainTokens = tokens.filter((t: any) => t.chain_id === chainId);
-        const prices = await fetchTokenPrices(Array.from(allTokens), chainId, pools, chainTokens, metadata);
+        // Symbol map built from pool metadata — no need to pass token DB entries
+        const prices = await fetchTokenPrices(Array.from(allTokens), chainId, pools, [], metadata);
         const pMap: any = {};
         prices.forEach((p: any) => (pMap[p.address.toLowerCase()] = p.price));
         setTokenPrices(pMap);
@@ -99,15 +99,15 @@ export default function PoolsPage() {
       "token0_symbol", "token0_address", "token0_amount", "token0_value_usd",
       "token1_symbol", "token1_address", "token1_amount", "token1_value_usd",
       "exchange_rate_t0_per_t1", "exchange_rate_t1_per_t0",
-      "tvl_usd", "label", "status",
+      "tvl_usd", "status",
     ]];
     list.forEach(p => {
       const meta = metadata[p.address.toLowerCase()];
-      // on-chain metadata 우선, 없으면 DB 값 fallback
-      const type    = meta?.type  ?? p.type  ?? "";
-      const fee     = meta?.fee   ?? p.fee   ?? "";
-      const t0Addr  = meta?.token0 ?? p.token0 ?? "";
-      const t1Addr  = meta?.token1 ?? p.token1 ?? "";
+      // 모든 값은 on-chain metadata 기준 (DB에는 address/chain/status만 저장)
+      const type   = meta?.type  ?? "";
+      const fee    = meta?.fee   ?? "";
+      const t0Addr = meta?.token0 ?? "";
+      const t1Addr = meta?.token1 ?? "";
       const t0Price = Number(tokenPrices[t0Addr.toLowerCase()] || 0);
       const t1Price = Number(tokenPrices[t1Addr.toLowerCase()] || 0);
       const a0  = Number(meta?.t0Amt || 0);
@@ -129,7 +129,6 @@ export default function PoolsPage() {
         rate !== null ? rate : "",
         rate !== null && rate !== 0 ? 1 / rate : "",
         meta?.isValid ? (meta.tvl ?? "") : "",
-        p.label ?? "",
         p.status === "i" ? "inactive" : "active",
       ]);
     });

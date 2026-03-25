@@ -1,6 +1,13 @@
 /**
  * Local storage-based persistence (no backend required).
- * All data is stored in the browser's localStorage under "poolscan_*" keys.
+ * DB stores only the minimum needed to identify each entity:
+ *   Pool   → address, chain_id, status
+ *   Wallet → address, chain_id, label
+ *   Token  → address, chain_id, price (fixed price override; null = use oracle)
+ *
+ * All metadata (symbol, name, decimals, fee, type, token0/token1…)
+ * is fetched on-chain at runtime and never persisted here.
+ *
  * Use exportConfig / importConfig for cross-device backup/restore.
  */
 import type { DBPool, DBWallet, DBToken } from "./types";
@@ -22,7 +29,7 @@ function setItem<T>(key: string, value: T): void {
   localStorage.setItem(`poolscan_${key}`, JSON.stringify(value));
 }
 
-// ── Sync reads (for use where async is not available) ─────────
+// ── Sync reads ────────────────────────────────────────────────
 
 export function getPoolsSync(chainId: number): DBPool[] {
   return getItem<DBPool[]>("pools", []).filter(p => p.chain_id === chainId);
@@ -43,7 +50,9 @@ export async function getPools(chainId: number): Promise<DBPool[]> {
 export async function insertPool(pool: Omit<DBPool, "id" | "created_at">): Promise<DBPool> {
   const all = getItem<DBPool[]>("pools", []);
   const newPool: DBPool = {
-    ...pool,
+    address:    pool.address,
+    chain_id:   pool.chain_id,
+    status:     pool.status,
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     created_at: new Date().toISOString(),
   };
@@ -58,22 +67,6 @@ export async function updatePoolStatus(id: string, status: "a" | "i"): Promise<v
 
 export async function deletePool(id: string): Promise<void> {
   setItem("pools", getItem<DBPool[]>("pools", []).filter(p => p.id !== id));
-}
-
-/**
- * Sync the full merged pool list back to localStorage.
- * Called after refreshData merges DB pools + initial pools,
- * so that exportConfig always captures the complete list.
- */
-export function syncPools(pools: DBPool[]): void {
-  const existing = getItem<DBPool[]>("pools", []);
-  // Add any pool not yet in storage (dedup by address+chain_id)
-  const toAdd = pools.filter(
-    p => !existing.some(e => e.address.toLowerCase() === p.address.toLowerCase() && e.chain_id === p.chain_id)
-  );
-  if (toAdd.length > 0) {
-    setItem("pools", [...existing, ...toAdd]);
-  }
 }
 
 // ── Wallets ───────────────────────────────────────────────────
@@ -109,13 +102,15 @@ export async function upsertToken(token: Omit<DBToken, "id" | "created_at">): Pr
     t => t.address.toLowerCase() === token.address.toLowerCase() && t.chain_id === token.chain_id
   );
   if (idx >= 0) {
-    const updated = { ...all[idx], ...token };
+    const updated: DBToken = { ...all[idx], price: token.price ?? all[idx].price };
     all[idx] = updated;
     setItem("tokens", all);
     return updated;
   }
   const newToken: DBToken = {
-    ...token,
+    address:    token.address,
+    chain_id:   token.chain_id,
+    price:      token.price ?? null,
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     created_at: new Date().toISOString(),
   };
@@ -129,32 +124,18 @@ export async function deleteToken(id: string): Promise<void> {
 
 // ── Config export / import ────────────────────────────────────
 
-export interface PoolscanConfig {
-  version: 1;
-  exportedAt: string;
-  pools: DBPool[];
-  wallets: DBWallet[];
-  tokens: DBToken[];
-}
-
-/** Download current config as a JSON file */
+/** Download current config as a JSON file — only minimal identifiers */
 export function exportConfig(): void {
   const allPools   = getItem<DBPool[]>("pools", []);
   const allWallets = getItem<DBWallet[]>("wallets", []);
   const allTokens  = getItem<DBToken[]>("tokens", []);
 
-  // Slim format — strip internal fields (id, created_at) not needed for restore
   const config = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     pools: allPools.map(p => ({
       address:  p.address,
       chain_id: p.chain_id,
-      type:     p.type,
-      fee:      p.fee,
-      token0:   p.token0,
-      token1:   p.token1,
-      label:    p.label,
       status:   p.status,
     })),
     wallets: allWallets.map(w => ({
@@ -165,9 +146,7 @@ export function exportConfig(): void {
     tokens: allTokens.map(t => ({
       address:  t.address,
       chain_id: t.chain_id,
-      symbol:   t.symbol,
-      name:     t.name,
-      decimals: t.decimals,
+      price:    t.price,
     })),
   };
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
@@ -179,59 +158,58 @@ export function exportConfig(): void {
   URL.revokeObjectURL(url);
 }
 
-/** Restore config from a JSON file (merges, deduplicates by address+chain_id).
- *  Handles both full records and slim records (address + chain_id only). */
+/** Restore config from a JSON file.
+ *  Handles v1 (with type/fee/token0/token1/symbol/decimals) and v2 (minimal) formats. */
 export function importConfig(json: string): { pools: number; wallets: number; tokens: number } {
-  const config = JSON.parse(json) as PoolscanConfig;
-  if (config.version !== 1) throw new Error("Unsupported config version");
+  const config = JSON.parse(json);
+  if (config.version !== 1 && config.version !== 2) throw new Error("Unsupported config version");
 
   const now = new Date().toISOString();
   const uid = () => Math.random().toString(36).slice(2, 9);
 
-  // Pools — normalise slim format (address + chain_id + status) to full DBPool
+  // Pools — accept both v1 (with extra fields) and v2 (address+chain_id+status only)
   const existingPools = getItem<DBPool[]>("pools", []);
   const newPools = (config.pools ?? [])
-    .filter(p => !existingPools.some(e => e.address.toLowerCase() === p.address.toLowerCase() && e.chain_id === p.chain_id))
-    .map(p => ({
-      id: (p as any).id ?? uid(),
-      created_at: (p as any).created_at ?? now,
-      address: p.address,
-      chain_id: p.chain_id,
-      type: (p as any).type ?? null,
-      fee: (p as any).fee ?? null,
-      token0: (p as any).token0 ?? "",
-      token1: (p as any).token1 ?? "",
-      label: (p as any).label ?? null,
-      status: (p as any).status ?? "a",
-    } as DBPool));
+    .filter((p: any) => !existingPools.some((e: DBPool) =>
+      e.address.toLowerCase() === p.address.toLowerCase() && e.chain_id === p.chain_id
+    ))
+    .map((p: any): DBPool => ({
+      id:         uid(),
+      created_at: now,
+      address:    p.address,
+      chain_id:   p.chain_id,
+      status:     p.status ?? "a",
+    }));
   setItem("pools", [...newPools, ...existingPools]);
 
-  // Wallets — normalise slim format (address + chain_id + label)
+  // Wallets
   const existingWallets = getItem<DBWallet[]>("wallets", []);
   const newWallets = (config.wallets ?? [])
-    .filter(w => !existingWallets.some(e => e.address.toLowerCase() === w.address.toLowerCase() && e.chain_id === w.chain_id))
-    .map(w => ({
-      id: (w as any).id ?? uid(),
-      created_at: (w as any).created_at ?? now,
-      address: w.address,
-      chain_id: w.chain_id,
-      label: (w as any).label ?? null,
-    } as DBWallet));
+    .filter((w: any) => !existingWallets.some((e: DBWallet) =>
+      e.address.toLowerCase() === w.address.toLowerCase() && e.chain_id === w.chain_id
+    ))
+    .map((w: any): DBWallet => ({
+      id:         uid(),
+      created_at: now,
+      address:    w.address,
+      chain_id:   w.chain_id,
+      label:      w.label ?? null,
+    }));
   setItem("wallets", [...newWallets, ...existingWallets]);
 
-  // Tokens — normalise slim format (address + chain_id only)
+  // Tokens — v1 had symbol/name/decimals (ignored now); v2 has price only
   const existingTokens = getItem<DBToken[]>("tokens", []);
   const newTokens = (config.tokens ?? [])
-    .filter(t => !existingTokens.some(e => e.address.toLowerCase() === t.address.toLowerCase() && e.chain_id === t.chain_id))
-    .map(t => ({
-      id: (t as any).id ?? uid(),
-      created_at: (t as any).created_at ?? now,
-      address: t.address,
-      chain_id: t.chain_id,
-      symbol: (t as any).symbol ?? "",
-      name: (t as any).name ?? "",
-      decimals: (t as any).decimals ?? 18,
-    } as DBToken));
+    .filter((t: any) => !existingTokens.some((e: DBToken) =>
+      e.address.toLowerCase() === t.address.toLowerCase() && e.chain_id === t.chain_id
+    ))
+    .map((t: any): DBToken => ({
+      id:         uid(),
+      created_at: now,
+      address:    t.address,
+      chain_id:   t.chain_id,
+      price:      t.price ?? null,
+    }));
   setItem("tokens", [...newTokens, ...existingTokens]);
 
   return { pools: newPools.length, wallets: newWallets.length, tokens: newTokens.length };
