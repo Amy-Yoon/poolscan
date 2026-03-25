@@ -15,6 +15,7 @@ const fmtPrice = (n: number): string => {
 
 interface V3PositionDetail {
   tokenId: string;
+  poolAddress: string;
   sym0: string;
   sym1: string;
   fee: number;
@@ -118,6 +119,7 @@ export default function WalletsPage() {
 
         const v3Positions: V3PositionDetail[] = positions.v3.map((p: any) => ({
           tokenId: p.tokenId,
+          poolAddress: p.poolAddress || "",
           sym0: p.token0?.symbol || "?",
           sym1: p.token1?.symbol || "?",
           fee: p.fee,
@@ -211,28 +213,56 @@ export default function WalletsPage() {
       [wallet.label || "Tracked Wallet", wallet.address],
       [],
       ["=== V3 Positions ==="],
-      ["Token ID", "Pair", "Fee %", "In Range", "Deposit Token0", "Deposit Token1", "Rewards Token0", "Rewards Token1", "Total Value (USD)"],
+      [
+        "Token ID", "Pool Address", "Pair", "Fee %", "In Range",
+        "Exchange Rate (Token0/Token1)", "Exchange Rate (Token1/Token0)",
+        "Deposit Token0", "Deposit Token1",
+        "Rewards Token0", "Rewards Token1",
+        "Total Value (USD)",
+      ],
     ];
 
-    summary.rawV3.forEach((p: any) => {
+    summary.v3Positions.forEach(p => {
+      const poolMeta = p.poolAddress ? metadata[p.poolAddress.toLowerCase()] : null;
+      const rate = poolMeta?.price ?? p.currentPrice ?? "";
+      const rateInv = rate && Number(rate) !== 0 ? (1 / Number(rate)) : "";
       rows.push([
-        p.tokenId || "",
-        `${p.token0?.symbol || "?"}/${p.token1?.symbol || "?"}`,
-        p.fee || "",
-        p.inRange ? "Yes" : "No",
-        p.amount0 ?? "",
-        p.amount1 ?? "",
-        p.fees0 ?? "",
-        p.fees1 ?? "",
-        ((p.amount0 || 0) + (p.fees0 || 0) + (p.amount1 || 0) + (p.fees1 || 0)),
+        p.tokenId,
+        p.poolAddress || "",
+        `${p.sym0}/${p.sym1}`,
+        p.fee,
+        p.inRange === undefined ? "" : p.inRange ? "Yes" : "No",
+        rate,
+        rateInv,
+        p.amount0,
+        p.amount1,
+        p.fees0,
+        p.fees1,
+        (() => {
+          const tp = summary.tokenPrices;
+          const p0 = tp[p.token0Addr] || 0;
+          const p1 = tp[p.token1Addr] || 0;
+          return (p.amount0 + p.fees0) * p0 + (p.amount1 + p.fees1) * p1;
+        })(),
       ]);
     });
 
-    rows.push([], ["=== V2 Positions ==="], ["Pool Address", "Pair", "LP Balance"]);
-    summary.rawV2.forEach((p: any) => {
-      const sym0 = p.tokenSymbols?.sym0 || "?";
-      const sym1 = p.tokenSymbols?.sym1 || "?";
-      rows.push([p.pool?.address || "", `${sym0}/${sym1}`, p.formattedBalance || "0"]);
+    rows.push([], ["=== V2 Positions ==="], [
+      "Pool Address", "Pair",
+      "Exchange Rate (Token0/Token1)", "Exchange Rate (Token1/Token0)",
+      "LP Balance",
+    ]);
+    summary.v2Positions.forEach(p => {
+      const poolMeta = metadata[p.poolAddress.toLowerCase()];
+      const rate = poolMeta?.price ?? "";
+      const rateInv = rate && Number(rate) !== 0 ? (1 / Number(rate)) : "";
+      rows.push([
+        p.poolAddress,
+        `${p.sym0}/${p.sym1}`,
+        rate,
+        rateInv,
+        p.formattedBalance,
+      ]);
     });
 
     const label = (wallet.label || "wallet").replace(/\s+/g, "_");
