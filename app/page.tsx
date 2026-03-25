@@ -58,7 +58,6 @@ export default function DashboardPage() {
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Real-time overview of TVL, pools & wallets</p>
       </div>
 
       {/* Stats */}

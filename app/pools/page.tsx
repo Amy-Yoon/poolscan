@@ -203,11 +203,8 @@ export default function PoolsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Pool Manager</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Monitor and manage on-chain liquidity pools</p>
-        </div>
+      <div className="mb-6 flex justify-between items-center">
+        <h1 className="text-xl font-semibold text-gray-900">Pool Manager</h1>
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}

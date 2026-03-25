@@ -69,10 +69,7 @@ export default function TokensPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Token Manager</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Token registry with live price data</p>
-        </div>
+        <h1 className="text-xl font-semibold text-gray-900">Token Manager</h1>
         <div className="flex items-center gap-3">
           {isFetchingPrices && (
             <div className="flex items-center gap-1.5 text-[12px] text-gray-400">

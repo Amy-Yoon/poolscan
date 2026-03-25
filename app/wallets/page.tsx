@@ -273,7 +273,6 @@ export default function WalletsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Wallet Manager</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Track V2/V3 LP positions across registered wallets</p>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
