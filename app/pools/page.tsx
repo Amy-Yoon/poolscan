@@ -231,16 +231,19 @@ export default function PoolsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards
+          Mobile : 2-col grid — TVL spans full width, tokens fill 2 per row
+          md+    : flex-row — every card is flex-1 so they share width equally
+                   regardless of token count (2~8+). No empty right-side gap. */}
       {!isLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          <div className="col-span-2 sm:col-span-1 bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0">
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-3 mb-6">
+          <div className="col-span-2 md:flex-1 md:min-w-[110px] bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0">
             <div className="text-xs text-gray-400 mb-2">Total TVL</div>
             <div className="text-lg font-semibold text-gray-900 truncate">{fmtFullUSD(aggregates.totalTVL)}</div>
             <div className="text-[10px] text-gray-300 mt-1">Active pools</div>
           </div>
           {aggregates.tokenTotals.map(t => (
-            <div key={t.symbol} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0 overflow-hidden">
+            <div key={t.symbol} className="md:flex-1 md:min-w-[90px] bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0 overflow-hidden">
               <div className="text-[11px] font-semibold text-gray-400 mb-2">{t.symbol}</div>
               <div className="text-[14px] font-semibold text-gray-900 truncate" title={String(t.amount)}>{fmtAmt(t.amount)}</div>
               <div className="text-[11px] text-gray-400 mt-0.5 truncate">{fmtFullUSD(t.value)}</div>
