@@ -53,22 +53,6 @@ function loadCache(chainId: number): { pools: DBPool[]; wallets: DBWallet[]; tok
 const TESTNET_TOKENS: string[] = [];
 const MAINNET_TOKENS: string[] = [];
 
-const generateInitialPools = (chainId: number): DBPool[] => {
-  const chain = CHAINS.find(c => c.id === chainId);
-  const list = chain?.knownPoolAddresses || [];
-  return list.map((item, idx) => ({
-    id: `init-${chainId}-${idx}`,
-    created_at: new Date().toISOString(),
-    address: item.address,
-    chain_id: chainId,
-    type: "v3" as const,
-    fee: null,
-    token0: "",
-    token1: "",
-    label: null,
-    status: item.status,
-  }));
-};
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [chainId, setChainIdState] = useState<ChainId>(1111);
@@ -100,15 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const dbPools = getPoolsSync(id);
     const dbWallets = getWalletsSync(id);
     const dbTokens = getTokensSync(id);
-    const initialPools = generateInitialPools(id);
-    // initialPools + dbPools 병합
-    const merged = [...dbPools];
-    initialPools.forEach(ip => {
-      if (!merged.find(mp => mp.address.toLowerCase() === ip.address.toLowerCase())) {
-        merged.push(ip);
-      }
-    });
-    setPools(merged);
+    setPools(dbPools);
     setWallets(dbWallets);
     setTokens(dbTokens);
     setMetadata({});
@@ -177,18 +153,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRefreshPercent(0);
     setRefreshProgress("Loading DB data…");
     try {
-      // 1. DB + 초기 풀 목록 병합
+      // 1. DB 풀 목록 로드
       const [dbPools, dbWallets, dbTokens] = await Promise.all([
         getPools(id), getWallets(id), getTokens(id)
       ]);
-      const initialPools = generateInitialPools(id);
       const mergedPools = [...dbPools];
-      initialPools.forEach(ip => {
-        if (!mergedPools.find(mp => mp.address.toLowerCase() === ip.address.toLowerCase())) {
-          mergedPools.push(ip);
-        }
-      });
-      // 신규 초기 풀을 localStorage에도 동기화 (export 시 누락 방지)
       syncPools(mergedPools);
       setRefreshPercent(10);
 
