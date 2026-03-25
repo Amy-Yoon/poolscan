@@ -94,17 +94,36 @@ export default function PoolsPage() {
   }, [currentPools, metadata]);
 
   const handleExport = (list: typeof pools, fileName: string) => {
-    const rows: (string | number)[][] = [
-      ["chain_id", "address", "type", "fee", "token0", "token1", "label", "status"],
-    ];
+    const rows: (string | number)[][] = [[
+      "chain_id", "address", "type", "fee",
+      "token0_symbol", "token0_address", "token0_amount", "token0_value_usd",
+      "token1_symbol", "token1_address", "token1_amount", "token1_value_usd",
+      "exchange_rate_t0_per_t1", "exchange_rate_t1_per_t0",
+      "tvl_usd", "label", "status",
+    ]];
     list.forEach(p => {
+      const meta = metadata[p.address.toLowerCase()];
+      const t0Price = Number(tokenPrices[meta?.token0?.toLowerCase()] || 0);
+      const t1Price = Number(tokenPrices[meta?.token1?.toLowerCase()] || 0);
+      const a0 = Number(meta?.t0Amt || 0);
+      const a1 = Number(meta?.t1Amt || 0);
+      const rate = meta?.isValid && meta.price ? Number(meta.price) : null;
       rows.push([
         p.chain_id,
         p.address,
-        p.type,
+        p.type ?? "",
         p.fee ?? "",
+        meta?.symbol0 ?? (p.token0 ?? ""),
         p.token0 ?? "",
+        meta?.isValid ? a0 : "",
+        meta?.isValid ? a0 * t0Price : "",
+        meta?.symbol1 ?? (p.token1 ?? ""),
         p.token1 ?? "",
+        meta?.isValid ? a1 : "",
+        meta?.isValid ? a1 * t1Price : "",
+        rate !== null ? rate : "",
+        rate !== null && rate !== 0 ? 1 / rate : "",
+        meta?.isValid ? (meta.tvl ?? "") : "",
         p.label ?? "",
         p.status === "i" ? "inactive" : "active",
       ]);

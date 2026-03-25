@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getWalletData, getWalletLPPositions, fetchTokenPrices } from "@/lib/blockchain";
 import { getChain, fmtAmt, fmtRate, fmtFull, fmtFullUSD } from "@/lib/utils";
-import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
 
 /** Extreme range boundaries → ∞ / 0, otherwise smart rate formatting */
 const fmtPrice = (n: number): string => {
@@ -127,23 +127,28 @@ export default function WalletDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white border border-gray-100 rounded-xl p-5">
-          <div className="text-xs text-gray-500 mb-2">LP Positions</div>
-          <div className="text-xl font-semibold text-gray-900">{totalPositions}</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">
-            V2 {lpPositions.v2.length} · V3 {lpPositions.v3.length}
-          </div>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col justify-between">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="bg-white border border-gray-100 rounded-xl px-5 py-3.5 flex items-center gap-4">
           <div>
-            <div className="text-xs text-gray-500 mb-2">LP Intelligence</div>
-            <div className="text-[12px] text-gray-400">Real-time position rescan</div>
+            <div className="text-[10px] text-gray-400 mb-0.5">LP Positions</div>
+            <div className="text-xl font-semibold text-gray-900">{totalPositions}</div>
           </div>
-          <button className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-medium rounded-lg transition-colors w-fit">
-            <RefreshCw size={12} />
-            Re-scan
-          </button>
+          {(lpPositions.v2.length > 0 || lpPositions.v3.length > 0) && (
+            <div className="flex items-center gap-2 border-l border-gray-100 pl-4">
+              {lpPositions.v3.length > 0 && (
+                <div className="text-center">
+                  <div className="text-[10px] text-gray-400">V3</div>
+                  <div className="text-sm font-semibold text-blue-600">{lpPositions.v3.length}</div>
+                </div>
+              )}
+              {lpPositions.v2.length > 0 && (
+                <div className="text-center">
+                  <div className="text-[10px] text-gray-400">V2</div>
+                  <div className="text-sm font-semibold text-amber-600">{lpPositions.v2.length}</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -173,71 +178,94 @@ export default function WalletDetailPage() {
                 const sym1 = pos.token1?.symbol || "?";
                 const hasAmounts = pos.amount0 !== undefined;
 
+                const blocks = [
+                  {
+                    label: "Deposit",
+                    amt0: pos.amount0 || 0,
+                    amt1: pos.amount1 || 0,
+                    value: dep0Val + dep1Val,
+                    bg: "bg-white border-gray-100",
+                    labelCls: "text-gray-500",
+                    valueCls: "text-gray-700",
+                  },
+                  {
+                    label: "Rewards",
+                    amt0: pos.fees0 || 0,
+                    amt1: pos.fees1 || 0,
+                    value: rew0Val + rew1Val,
+                    bg: "bg-amber-50 border-amber-100",
+                    labelCls: "text-amber-600",
+                    valueCls: "text-amber-700",
+                  },
+                  {
+                    label: "Total",
+                    amt0: total0,
+                    amt1: total1,
+                    value: totalVal,
+                    bg: "bg-blue-50 border-blue-100",
+                    labelCls: "text-blue-600",
+                    valueCls: "text-blue-600",
+                  },
+                ];
+
                 return (
                   <div key={pos.tokenId} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col gap-3">
-                    {/* 포지션 헤더 */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-800">{sym0} / {sym1}</span>
-                      <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                        V3 {pos.fee}%
-                      </span>
-                      {hasAmounts && (
-                        <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${pos.inRange ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"}`}>
-                          {pos.inRange ? "In Range" : "Out of Range"}
+
+                    {/* 헤더: 페어 + 배지 + NFT ID */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-800">{sym0} / {sym1}</span>
+                        <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                          V3 {pos.fee}%
                         </span>
-                      )}
-                      <span className="ml-auto text-[11px] text-gray-400 font-mono shrink-0">#{pos.tokenId}</span>
+                        {hasAmounts && (
+                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${pos.inRange ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"}`}>
+                            {pos.inRange ? "In Range" : "Out"}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-400 font-mono shrink-0 bg-white border border-gray-100 rounded px-1.5 py-0.5">
+                        #{pos.tokenId}
+                      </span>
                     </div>
 
-                    {/* 가격 범위 + 현재 교환비 */}
-                    <div className="px-3 py-2 bg-white rounded-lg border border-gray-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-[10px] text-gray-400">Price Range</div>
+                    {/* 가격 범위 */}
+                    <div className="px-3 py-2.5 bg-white rounded-lg border border-gray-100">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] text-gray-400 font-medium">Price Range</span>
                         {hasAmounts && pos.currentPrice > 0 && (
-                          <div className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-gray-400">
                             1 {sym0} = <span className="font-mono font-medium text-gray-600">{fmtRate(pos.currentPrice)}</span> {sym1}
-                          </div>
+                          </span>
                         )}
                       </div>
                       <div className="text-[12px] font-mono font-medium text-gray-800">
                         {hasAmounts
                           ? `${fmtPrice(pos.priceLower)} ~ ${fmtPrice(pos.priceUpper)}`
-                          : `${Number(pos.tickLower).toLocaleString()} ~ ${Number(pos.tickUpper).toLocaleString()}`
+                          : `Tick ${Number(pos.tickLower).toLocaleString()} ~ ${Number(pos.tickUpper).toLocaleString()}`
                         }
                       </div>
                     </div>
 
-                    {/* 수량 테이블 */}
+                    {/* 수량 블록 (3열) */}
                     {hasAmounts ? (
-                      <div className="space-y-1 overflow-x-auto">
-                        {/* 컬럼 헤더 */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] text-[10px] text-gray-400 px-2 min-w-[260px]">
-                          <span />
-                          <span className="text-center font-medium text-gray-500">{sym0}</span>
-                          <span className="text-center font-medium text-gray-500">{sym1}</span>
-                          <span className="text-right">Value</span>
-                        </div>
-                        {/* Deposit */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-white border border-gray-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
-                          <span className="text-gray-500 font-medium">Deposit</span>
-                          <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount0)}</span>
-                          <span className="text-center text-gray-800 font-mono">{fmtAmt(pos.amount1)}</span>
-                          <span className="text-right text-gray-600 font-medium">{fmtFullUSD(dep0Val + dep1Val)}</span>
-                        </div>
-                        {/* Rewards */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-amber-50 border border-amber-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
-                          <span className="text-amber-600 font-medium">Rewards</span>
-                          <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees0)}</span>
-                          <span className="text-center text-gray-700 font-mono">{fmtAmt(pos.fees1)}</span>
-                          <span className="text-right text-amber-700 font-medium">{fmtFullUSD(rew0Val + rew1Val)}</span>
-                        </div>
-                        {/* Total */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_68px] items-center bg-blue-50 border border-blue-100 rounded-lg px-2 py-2 text-[11px] min-w-[260px]">
-                          <span className="text-blue-600 font-medium">Total</span>
-                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total0)}</span>
-                          <span className="text-center text-gray-800 font-mono font-semibold">{fmtAmt(total1)}</span>
-                          <span className="text-right text-blue-600 font-semibold">{fmtFullUSD(totalVal)}</span>
-                        </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {blocks.map(b => (
+                          <div key={b.label} className={`${b.bg} border rounded-xl p-2.5 flex flex-col gap-1`}>
+                            <span className={`text-[10px] font-semibold ${b.labelCls}`}>{b.label}</span>
+                            <div>
+                              <div className="text-[11px] font-mono font-medium text-gray-800 truncate">{fmtAmt(b.amt0)}</div>
+                              <div className="text-[9px] text-gray-400">{sym0}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-mono font-medium text-gray-800 truncate">{fmtAmt(b.amt1)}</div>
+                              <div className="text-[9px] text-gray-400">{sym1}</div>
+                            </div>
+                            <div className={`text-[11px] font-semibold ${b.valueCls} mt-auto pt-1 border-t border-black/5`}>
+                              {fmtFullUSD(b.value)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <div className="text-[11px] text-gray-400 text-center py-1">

@@ -159,7 +159,7 @@ export default function PoolDetailPage() {
         </div>
 
         {/* 우측 액션 버튼들 */}
-        <div className="ml-auto flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
           {dbPool && (
             <button
               onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
@@ -195,14 +195,16 @@ export default function PoolDetailPage() {
           <div className="text-xs text-gray-500 mb-4">Exchange Rate</div>
           <div className="space-y-4">
             <div>
-              <div className="text-lg font-semibold text-gray-900 truncate">{fmtRate(data.price)}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">1 {data.token0.symbol} = {data.token1.symbol}</div>
+              <div className="text-[11px] text-gray-400 mb-1">1 {data.token0.symbol} =</div>
+              <div className="text-lg font-semibold text-gray-900 truncate">
+                {fmtRate(data.price)} <span className="text-sm font-normal text-gray-400">{data.token1.symbol}</span>
+              </div>
             </div>
             <div className="pt-4 border-t border-gray-100">
+              <div className="text-[11px] text-gray-400 mb-1">1 {data.token1.symbol} =</div>
               <div className="text-lg font-semibold text-gray-900 truncate">
-                {data.price > 0 ? fmtRate(1 / data.price) : "—"}
+                {data.price > 0 ? fmtRate(1 / data.price) : "—"} <span className="text-sm font-normal text-gray-400">{data.token0.symbol}</span>
               </div>
-              <div className="text-[11px] text-gray-400 mt-0.5">1 {data.token1.symbol} = {data.token0.symbol}</div>
             </div>
           </div>
         </div>
@@ -212,17 +214,13 @@ export default function PoolDetailPage() {
           <div className="text-xs text-gray-500 mb-4">Liquidity Balance</div>
           <div className="space-y-4">
             <div>
-              <div className="flex items-baseline justify-between">
-                <div className="text-lg font-semibold text-gray-900 truncate">{fmtAmt(data.token0.balance)}</div>
-                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">{data.token0.symbol}</span>
-              </div>
+              <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{data.token0.symbol}</span>
+              <div className="text-lg font-semibold text-gray-900 truncate mt-1">{fmtAmt(data.token0.balance)}</div>
               <div className="text-[11px] text-gray-400 mt-0.5">{fmtFullUSD(t0Value)}</div>
             </div>
             <div className="pt-4 border-t border-gray-100">
-              <div className="flex items-baseline justify-between">
-                <div className="text-lg font-semibold text-gray-900 truncate">{fmtAmt(data.token1.balance)}</div>
-                <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{data.token1.symbol}</span>
-              </div>
+              <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{data.token1.symbol}</span>
+              <div className="text-lg font-semibold text-gray-900 truncate mt-1">{fmtAmt(data.token1.balance)}</div>
               <div className="text-[11px] text-gray-400 mt-0.5">{fmtFullUSD(t1Value)}</div>
             </div>
           </div>
@@ -231,14 +229,12 @@ export default function PoolDetailPage() {
         {/* TVL + Info */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="text-xs text-gray-500 mb-4">TVL</div>
-          <div className="text-xl font-semibold text-blue-600 mb-1 truncate">{fmtFullUSD(data.tvl)}</div>
-          <div className="text-[11px] text-gray-400 mb-5">Total Value Locked</div>
+          <div className="text-[11px] text-gray-400 mb-1">Total Value Locked</div>
+          <div className="text-xl font-semibold text-gray-900 truncate">{fmtFullUSD(data.tvl)}</div>
           {data.type === "v3" && (
-            <div className="border-t border-gray-100 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] text-gray-500">Current Tick</span>
-                <span className="text-[12px] font-mono font-medium text-gray-800">{data.tick}</span>
-              </div>
+            <div className="border-t border-gray-100 mt-4 pt-4">
+              <div className="text-[11px] text-gray-400 mb-1">Current Tick</div>
+              <div className="text-lg font-semibold text-gray-900 font-mono">{data.tick}</div>
             </div>
           )}
         </div>
