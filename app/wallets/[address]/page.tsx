@@ -277,7 +277,7 @@ export default function WalletDetailPage() {
                       <div className="text-[11px] font-mono text-gray-400 mt-0.5">{pos.pool.address}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">{fmtNum(pos.formattedBalance, 4)}</div>
+                      <div className="text-sm font-medium text-gray-900">{fmtAmt(pos.formattedBalance)}</div>
                       <div className="text-[11px] text-gray-400 mt-0.5">LP Token</div>
                     </div>
                   </div>

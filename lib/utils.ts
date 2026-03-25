@@ -196,11 +196,9 @@ export const fmtRate = (n: any): string => {
  */
 export const fmtTokenPrice = (n: any): string => {
   const val = Number(n);
-  if (!isFinite(val) || isNaN(val)) return "N/A";
+  if (!isFinite(val) || isNaN(val) || val >= SANE_MAX) return "N/A";
   if (val === 0) return "0";
-  const abs = Math.abs(val);
-  if (abs >= 1000) return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(val));
-  return stripZeros(val.toFixed(8));
+  return stripZeros(val.toFixed(4));
 };
 
 /** Abbreviated token quantity for compact spaces (K / M). */

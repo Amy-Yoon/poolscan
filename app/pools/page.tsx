@@ -4,8 +4,11 @@ import React, { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
 import { fmtAmt, fmtRate, fmtFullUSD, downloadCSV, getChain } from "@/lib/utils";
-import { Download, ChevronDown, ExternalLink, Trash2, Power, ArrowLeftRight } from "lucide-react";
+import { Download, ChevronDown, ExternalLink, Trash2, Power, ArrowLeftRight, ChevronUp, ChevronsUpDown, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
+
+type SortKey = "pool" | "rate" | "token0" | "token1" | "tvl";
+type SortDir = "asc" | "desc";
 
 export default function PoolsPage() {
   const { pools, tokens, chainId, isLoading, togglePoolStatus, removePool, metadata } = useApp();
@@ -14,10 +17,23 @@ export default function PoolsPage() {
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [showInactive, setShowInactive] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  // pool.id → true이면 reverse (Token1 기준)
   const [reversedRates, setReversedRates] = useState<Set<string>>(new Set());
   const toggleRate = (id: string) =>
     setReversedRates(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  // ── Filters
+  const [filterType, setFilterType] = useState<"all" | "v2" | "v3">("all");
+  const [filterToken, setFilterToken] = useState<string>("");
+  const [showTokenDropdown, setShowTokenDropdown] = useState(false);
+
+  // ── Sort
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+  };
 
   const currentPools = pools.filter(p => p.chain_id === chainId);
   const activePools = currentPools.filter(p => p.status === "a" || !p.status);
@@ -67,6 +83,16 @@ export default function PoolsPage() {
     return { tokenTotals: Object.values(tokenMap).sort((a, b) => b.value - a.value).slice(0, 6), totalTVL };
   }, [activePools, metadata, tokenPrices]);
 
+  // ── Unique token symbols for filter dropdown
+  const allTokenSymbols = useMemo(() => {
+    const set = new Set<string>();
+    currentPools.forEach(pool => {
+      const meta = metadata[pool.address.toLowerCase()];
+      if (meta?.isValid) { set.add(meta.symbol0); set.add(meta.symbol1); }
+    });
+    return Array.from(set).sort();
+  }, [currentPools, metadata]);
+
   const handleExport = (list: typeof pools, fileName: string) => {
     const rows: (string | number)[][] = [
       ["chain_id", "address", "type", "fee", "token0", "token1", "label", "status"],
@@ -87,7 +113,69 @@ export default function PoolsPage() {
     setShowExportMenu(false);
   };
 
-  const displayedPools = showInactive ? currentPools : activePools;
+  // ── Filter → Sort pipeline
+  const displayedPools = useMemo(() => {
+    let list = showInactive ? currentPools : activePools;
+
+    // type filter
+    if (filterType !== "all") {
+      list = list.filter(p => {
+        const meta = metadata[p.address.toLowerCase()];
+        return meta?.type === filterType;
+      });
+    }
+
+    // token filter
+    if (filterToken) {
+      const q = filterToken.toLowerCase();
+      list = list.filter(p => {
+        const meta = metadata[p.address.toLowerCase()];
+        if (!meta?.isValid) return false;
+        return meta.symbol0.toLowerCase() === q || meta.symbol1.toLowerCase() === q;
+      });
+    }
+
+    // sort
+    if (sortKey) {
+      list = [...list].sort((a, b) => {
+        const ma = metadata[a.address.toLowerCase()];
+        const mb = metadata[b.address.toLowerCase()];
+        let va = 0, vb = 0;
+        if (sortKey === "pool") {
+          const na = ma?.isValid ? `${ma.symbol0}/${ma.symbol1}` : a.address;
+          const nb = mb?.isValid ? `${mb.symbol0}/${mb.symbol1}` : b.address;
+          return sortDir === "asc" ? na.localeCompare(nb) : nb.localeCompare(na);
+        }
+        if (sortKey === "tvl") { va = Number(ma?.tvl || 0); vb = Number(mb?.tvl || 0); }
+        if (sortKey === "rate") { va = Number(ma?.price || 0); vb = Number(mb?.price || 0); }
+        if (sortKey === "token0") { va = Number(ma?.t0Amt || 0); vb = Number(mb?.t0Amt || 0); }
+        if (sortKey === "token1") { va = Number(ma?.t1Amt || 0); vb = Number(mb?.t1Amt || 0); }
+        return sortDir === "asc" ? va - vb : vb - va;
+      });
+    }
+
+    return list;
+  }, [showInactive, currentPools, activePools, filterType, filterToken, metadata, sortKey, sortDir]);
+
+  // ── Sort icon helper
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ChevronsUpDown size={12} className="text-gray-300 ml-0.5" />;
+    return sortDir === "asc"
+      ? <ChevronUp size={12} className="text-blue-500 ml-0.5" />
+      : <ChevronDown size={12} className="text-blue-500 ml-0.5" />;
+  };
+
+  const SortTh = ({ col, label, className = "" }: { col: SortKey; label: string; className?: string }) => (
+    <th
+      className={`px-3 py-3 text-[11px] font-medium text-gray-500 cursor-pointer select-none hover:text-gray-800 ${className}`}
+      onClick={() => handleSort(col)}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        <SortIcon col={col} />
+      </span>
+    </th>
+  );
 
   return (
     <div>
@@ -126,14 +214,11 @@ export default function PoolsPage() {
       {/* Summary Cards */}
       {!isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          {/* TVL 카드 */}
           <div className="col-span-2 sm:col-span-1 bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0">
             <div className="text-xs text-gray-400 mb-2">Total TVL</div>
             <div className="text-lg font-semibold text-gray-900 truncate">{fmtFullUSD(aggregates.totalTVL)}</div>
             <div className="text-[10px] text-gray-300 mt-1">Active pools</div>
           </div>
-
-          {/* 토큰 개별 블록 */}
           {aggregates.tokenTotals.map(t => (
             <div key={t.symbol} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between min-w-0 overflow-hidden">
               <div className="text-[11px] font-semibold text-gray-400 mb-2">{t.symbol}</div>
@@ -146,14 +231,79 @@ export default function PoolsPage() {
 
       {/* Pool Table */}
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        {/* Table Header Controls */}
-        <div className="px-5 py-3.5 border-b border-gray-100 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+        {/* Controls bar */}
+        <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-3 items-center justify-between">
+          {/* Left: count + filters */}
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-gray-800">Pool List</span>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
               {displayedPools.length}
             </span>
+
+            {/* V2 / V3 filter chips */}
+            <div className="flex items-center gap-1 ml-1">
+              {(["all", "v2", "v3"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilterType(t)}
+                  className={`text-[12px] px-2.5 py-0.5 rounded-full font-medium transition-colors ${
+                    filterType === t
+                      ? t === "v2"
+                        ? "bg-amber-100 text-amber-700"
+                        : t === "v3"
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}
+                >
+                  {t === "all" ? "All" : t.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Token filter dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTokenDropdown(v => !v)}
+                className={`flex items-center gap-1 text-[12px] px-2.5 py-0.5 rounded-full font-medium transition-colors border ${
+                  filterToken
+                    ? "bg-violet-50 text-violet-700 border-violet-200"
+                    : "bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {filterToken || "Token"}
+                <ChevronDown size={11} className={`transition-transform ${showTokenDropdown ? "rotate-180" : ""}`} />
+                {filterToken && (
+                  <span
+                    onClick={e => { e.stopPropagation(); setFilterToken(""); setShowTokenDropdown(false); }}
+                    className="ml-0.5 hover:text-red-500"
+                  >
+                    <X size={11} />
+                  </span>
+                )}
+              </button>
+              {showTokenDropdown && (
+                <div className="absolute left-0 top-full mt-1 w-40 bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 max-h-52 overflow-y-auto">
+                  {allTokenSymbols.length === 0 && (
+                    <div className="px-3 py-2 text-[12px] text-gray-400">No tokens</div>
+                  )}
+                  {allTokenSymbols.map(sym => (
+                    <button
+                      key={sym}
+                      onClick={() => { setFilterToken(sym === filterToken ? "" : sym); setShowTokenDropdown(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 transition-colors ${
+                        filterToken === sym ? "font-semibold text-violet-700" : "text-gray-700"
+                      }`}
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Right: Show Inactive toggle */}
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <span className="text-[13px] text-gray-500">Show Inactive</span>
             <button
@@ -165,18 +315,18 @@ export default function PoolsPage() {
           </label>
         </div>
 
-        {/* 스크롤 엣지 페이드 래퍼 */}
+        {/* Table */}
         <div className="relative">
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[820px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="pl-5 pr-3 py-3 text-[11px] font-medium text-gray-500 w-8 text-center">#</th>
-                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500">Pool</th>
-                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Exchange Rate</th>
-                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Token 0</th>
-                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">Token 1</th>
-                  <th className="px-3 py-3 text-[11px] font-medium text-gray-500 text-right">TVL</th>
+                  <SortTh col="pool" label="Pool" />
+                  <SortTh col="rate" label="Exchange Rate" className="text-right" />
+                  <SortTh col="token0" label="Token 0" className="text-right" />
+                  <SortTh col="token1" label="Token 1" className="text-right" />
+                  <SortTh col="tvl" label="TVL" className="text-right" />
                   <th className="pl-3 pr-5 py-3 text-[11px] font-medium text-gray-500 w-24 text-right"></th>
                 </tr>
               </thead>
@@ -246,10 +396,8 @@ export default function PoolsPage() {
                       <td className="px-3 py-3.5 text-right">
                         <span className="text-sm font-semibold text-gray-900">{meta?.isValid ? fmtFullUSD(meta.tvl) : "—"}</span>
                       </td>
-                      {/* Power(toggle) + Explorer + Delete */}
                       <td className="pl-3 pr-5 py-3.5">
                         <div className="flex items-center justify-end gap-0.5">
-                          {/* 활성/비활성 토글 */}
                           <button
                             onClick={() => togglePoolStatus(pool.id, pool.status)}
                             title={isInactive ? "Activate" : "Deactivate"}
@@ -262,8 +410,6 @@ export default function PoolsPage() {
                           >
                             <Power size={13} />
                           </button>
-
-                          {/* Explorer */}
                           <a
                             href={`${chain.explorer.replace(/\/$/, "")}/address/${pool.address}`}
                             target="_blank"
@@ -273,8 +419,6 @@ export default function PoolsPage() {
                           >
                             <ExternalLink size={13} />
                           </a>
-
-                          {/* Delete */}
                           {confirmDelete === pool.id ? (
                             <div className="flex items-center gap-1 ml-0.5">
                               <button
@@ -307,7 +451,7 @@ export default function PoolsPage() {
               </tbody>
             </table>
             {displayedPools.length === 0 && (
-              <EmptyState message="No pools registered" height="h-40" />
+              <EmptyState message="No pools found" height="h-40" />
             )}
           </div>
         </div>
