@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { fetchTokenPrices } from "@/lib/blockchain";
 import { fmtTokenPrice, CHAINS, downloadCSV } from "@/lib/utils";
-import { Loader2, ExternalLink, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, ExternalLink, Download, ArrowUpDown, ArrowUp, ArrowDown, Info } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 type SortDir = "none" | "asc" | "desc";
@@ -43,7 +44,7 @@ export default function TokensPage() {
       }
     }
     loadPrices();
-  }, [chainId, tokens, tokenMetadata]);
+  }, [chainId, tokens, tokenMetadata, metadata, pools]);
 
   const getPrice = (addr: string) => {
     const p = prices[addr.toLowerCase()];
@@ -86,7 +87,8 @@ export default function TokensPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Token Manager</h1>
         <div className="flex items-center gap-3">
           {isFetchingPrices && (
@@ -104,6 +106,14 @@ export default function TokensPage() {
               <span className="hidden sm:inline">Export</span>
             </button>
           )}
+        </div>
+        </div>
+        <div className="mt-3 flex items-start gap-2 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-[12px] text-gray-500">
+          <Info size={13} className="shrink-0 mt-0.5 text-gray-400" />
+          <span>
+            Tokens are automatically registered when you add a pool in{" "}
+            <Link href="/pools" className="text-blue-500 hover:underline">Pool Manager</Link>.
+          </span>
         </div>
       </div>
 

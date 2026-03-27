@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { DBPool, DBWallet, DBToken, TokenMeta, ChainId } from "@/lib/types";
 import { getPools, getWallets, getTokens, getPoolsSync, getWalletsSync, getTokensSync, updatePoolStatus as dbUpdatePoolStatus, deletePool as dbDeletePool, deleteWallet as dbDeleteWallet, upsertToken, migrateStorage } from "@/lib/db";
-import { analyzeAddress, fetchPoolsMetadata } from "@/lib/blockchain";
+import { analyzeAddress, fetchPoolsMetadata, fetchTokenPrices } from "@/lib/blockchain";
 import { CHAINS } from "@/lib/utils";
 import { HARDCODED_STABLE_TOKENS, getStableAddressSet } from "@/lib/stableTokens";
 
@@ -22,6 +22,7 @@ interface AppContextType {
   lastUpdated: Date | null;
   refreshData: () => Promise<void>;
   metadata: Record<string, any>;
+  tokenPrices: Record<string, number>;
   summary: {
     totalPools: number;
     totalWallets: number;
@@ -59,6 +60,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tokens, setTokens] = useState<DBToken[]>([]);
   const [tokenMetadata, setTokenMetadata] = useState<Record<string, TokenMeta>>({});
   const [metadata, setMetadata] = useState<Record<string, any>>({});
+  const [tokenPrices, setTokenPricesState] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshProgress, setRefreshProgress] = useState("");
@@ -405,8 +407,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isImportingDefault, isRefreshing, refreshData]);
 
+  // metadata가 바뀌면 token prices 백그라운드 fetch
+  useEffect(() => {
+    const allTokens = new Set<string>();
+    Object.values(metadata).forEach((m: any) => {
+      if (m?.isValid) {
+        if (m.token0) allTokens.add(m.token0.toLowerCase());
+        if (m.token1) allTokens.add(m.token1.toLowerCase());
+      }
+    });
+    if (allTokens.size === 0) return;
+    const id = chainIdRef.current;
+    const currentPools = pools.filter(p => p.chain_id === id);
+    const regTokens = Object.entries(tokenMetadata).map(([addr, m]) => ({ address: addr, symbol: (m as any).symbol }));
+    fetchTokenPrices(Array.from(allTokens), id, currentPools, regTokens, metadata)
+      .then(results => {
+        const pMap: Record<string, number> = {};
+        results.forEach(r => { if (Number(r.price) > 0) pMap[r.address.toLowerCase()] = Number(r.price); });
+        setTokenPricesState(pMap);
+      })
+      .catch(() => {});
+  }, [metadata, chainId, tokenMetadata]);
+
   const activePools = pools.filter(p => (p.status === "a" || !p.status) && p.chain_id === chainId);
-  const totalTVL = activePools.reduce((acc, p) => acc + (metadata[p.address.toLowerCase()]?.tvl || 0), 0);
+
+  const getEffectiveTVL = (meta: any): number => {
+    if (!meta?.isValid) return 0;
+    const t0Price = tokenPrices[meta.token0?.toLowerCase()] || 0;
+    const t1Price = tokenPrices[meta.token1?.toLowerCase()] || 0;
+    const computed = Number(meta.t0Amt || 0) * t0Price + Number(meta.t1Amt || 0) * t1Price;
+    if (computed > 0) return computed;
+    return Number(meta?.tvl || 0);
+  };
+
+  const totalTVL = activePools.reduce((acc, p) => {
+    const meta = metadata[p.address.toLowerCase()];
+    return acc + getEffectiveTVL(meta);
+  }, 0);
 
   const summary = {
     totalPools: activePools.length,
@@ -419,7 +456,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       chainId, setChainId, pools, wallets, tokens, tokenMetadata,
       isLoading, isRefreshing, refreshProgress, refreshPercent, lastUpdated,
-      refreshData, metadata, summary, togglePoolStatus, removePool, removeWallet,
+      refreshData, metadata, tokenPrices, summary, togglePoolStatus, removePool, removeWallet,
       importDefaultData, isImportingDefault,
     }}>
       {children}

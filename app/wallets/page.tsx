@@ -4,7 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { getWalletLPPositions, fetchTokenPrices } from "@/lib/blockchain";
 import { downloadCSV, fmtAmt, fmtRate, fmtFullUSD, getChain } from "@/lib/utils";
-import { Loader2, ChevronDown, ChevronRight, Download, ArrowLeftRight, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, ChevronDown, ChevronRight, Download, ArrowLeftRight, Trash2, ExternalLink, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 /** Extreme range boundary → ∞ / 0 */
 const fmtPrice = (n: number): string => {
@@ -62,10 +64,22 @@ interface WalletSummary {
 export default function WalletsPage() {
   const { wallets, chainId, pools, tokens, metadata, isLoading, removeWallet } = useApp();
   const chain = getChain(chainId);
-  const [summaries, setSummaries] = useState<Record<string, WalletSummary>>({});
+  const router = useRouter();
+  const [summaries, setSummariesState] = useState<Record<string, WalletSummary>>({});
+  const setSummaries = (updater: ((prev: Record<string, WalletSummary>) => Record<string, WalletSummary>) | Record<string, WalletSummary>) => {
+    setSummariesState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      summariesRef.current = next;
+      return next;
+    });
+  };
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // tokenId → true means show reversed price (sym1 per sym0 → sym0 per sym1)
   const [reversedPrices, setReversedPrices] = useState<Record<string, boolean>>({});
+  // scan key: chainId + active pool count → pools 추가/삭제 시에만 전체 재스캔
+  const scanKeyRef = React.useRef<string>("");
+  // summaries 최신값을 useEffect 클로저에서 참조하기 위한 ref
+  const summariesRef = React.useRef<Record<string, WalletSummary>>({});
 
   const togglePriceReverse = (tokenId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,10 +91,17 @@ export default function WalletsPage() {
   useEffect(() => {
     if (currentWallets.length === 0) return;
 
+    // pools 개수 + chainId 기반 scan key — 풀 추가/삭제 시에만 전체 재스캔
+    const chainPools = pools.filter(p => p.chain_id === chainId);
+    const newKey = `${chainId}-${chainPools.length}`;
+    const keyChanged = newKey !== scanKeyRef.current;
+    scanKeyRef.current = newKey;
+
     setSummaries(prev => {
       const next = { ...prev };
       currentWallets.forEach(w => {
-        if (!next[w.address]) {
+        // key가 바뀌었으면 (풀 추가/삭제) 전체 리셋, 아니면 새 지갑만 추가
+        if (keyChanged || !next[w.address]) {
           next[w.address] = {
             v2Count: 0, v3Count: 0,
             totalValueUSD: null, hasPrices: false,
@@ -94,7 +115,15 @@ export default function WalletsPage() {
       return next;
     });
 
-    currentWallets.forEach(async (wallet) => {
+    // 스캔 대상: key 변경 시 전체, 아니면 아직 done이 아닌 지갑만 (ref로 최신값 참조)
+    const walletsToScan = keyChanged
+      ? currentWallets
+      : currentWallets.filter(w => {
+          const s = summariesRef.current[w.address];
+          return !s || s.status !== "done";
+        });
+
+    walletsToScan.forEach(async (wallet) => {
       try {
         const positions = await getWalletLPPositions(wallet.address, chainId, pools);
 
@@ -113,6 +142,23 @@ export default function WalletsPage() {
             const priceResults = await fetchTokenPrices(allTokenAddrs, chainId, pools, chainTokens, metadata);
             priceResults.forEach((r: any) => {
               if (r.price) tokenPrices[r.address.toLowerCase()] = Number(r.price);
+            });
+
+            // V2 교환비 역산: 한쪽 가격만 알아도 반대편 토큰 가격 추론
+            positions.v2.forEach((pos: any) => {
+              const addr0 = (pos.token0Addr || "").toLowerCase();
+              const addr1 = (pos.token1Addr || "").toLowerCase();
+              const a0 = pos.amount0 || 0;
+              const a1 = pos.amount1 || 0;
+              if (a0 > 0 && a1 > 0) {
+                const p0 = tokenPrices[addr0] || 0;
+                const p1 = tokenPrices[addr1] || 0;
+                if (p0 > 0 && !p1) {
+                  tokenPrices[addr1] = p0 * (a0 / a1);
+                } else if (p1 > 0 && !p0) {
+                  tokenPrices[addr0] = p1 * (a1 / a0);
+                }
+              }
             });
           } catch { /* prices optional */ }
         }
@@ -273,6 +319,15 @@ export default function WalletsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Wallet Manager</h1>
+        <div className="mt-3 flex items-start gap-2 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-[12px] text-gray-500">
+          <Info size={13} className="shrink-0 mt-0.5 text-gray-400" />
+          <span>
+            V2 LP positions are detected based on pools registered in Pool Manager.
+            If a V2 position isn&apos;t showing up, try{" "}
+            <Link href="/pools" className="text-blue-500 hover:underline">registering the pool</Link>
+            {" "}first.
+          </span>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -286,7 +341,7 @@ export default function WalletsPage() {
               <col style={{ width: "56px" }} />   {/* V3 */}
               <col style={{ width: "80px" }} />   {/* 총 포지션 */}
               <col style={{ width: "136px" }} />  {/* Total Value */}
-              <col style={{ width: "100px" }} />  {/* actions */}
+              <col style={{ width: "140px" }} />  {/* actions */}
             </colgroup>
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -310,30 +365,17 @@ export default function WalletsPage() {
 
                 return (
                   <React.Fragment key={wallet.id}>
-                    {/* Main row — click anywhere to toggle */}
+                    {/* Main row — click to go to detail page */}
                     <tr
-                      onClick={() => canToggle && toggleExpand(wallet.address)}
-                      className={`border-b border-gray-50 transition-colors ${canToggle ? "cursor-pointer hover:bg-gray-50" : ""} ${isOpen ? "bg-gray-50 border-gray-100" : "last:border-0"}`}
+                      onClick={() => router.push(`/wallets/${wallet.address}`)}
+                      className={`bg-white border-b border-gray-50 transition-colors cursor-pointer hover:bg-gray-50/60 ${isOpen ? "border-gray-100" : "last:border-0"}`}
                     >
                       <td className="px-3 py-4 text-[12px] text-gray-400 text-center">{idx + 1}</td>
 
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-4 h-4 flex items-center justify-center shrink-0 ${hasPositions && !isScanning ? "text-gray-400" : "text-gray-200"}`}>
-                            {isScanning ? (
-                              <Loader2 size={11} className="animate-spin" />
-                            ) : hasPositions ? (
-                              isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />
-                            ) : (
-                              <ChevronRight size={13} className="opacity-20" />
-                            )}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">{wallet.label}</div>
-                            <div className="text-[11px] font-mono text-gray-400 mt-0.5">
-                              {wallet.address.slice(0, 8)}…{wallet.address.slice(-6)}
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-gray-900 truncate">{wallet.label}</span>
+                          <span className="text-[11px] font-mono text-gray-400 shrink-0">{wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}</span>
                         </div>
                       </td>
 
@@ -379,43 +421,63 @@ export default function WalletsPage() {
                       {/* Actions */}
                       <td className="px-3 py-4" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
-                          {!isScanning && summary?.status === "done" && (
-                            <button
-                              onClick={() => handleExport(wallet, summary)}
-                              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Export CSV"
-                            >
-                              <Download size={13} />
-                            </button>
-                          )}
+
+                          {/* 펼치기 + 익스플로러 */}
+                          <button
+                            onClick={() => canToggle && toggleExpand(wallet.address)}
+                            disabled={!canToggle}
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-20 disabled:cursor-default"
+                            title={isOpen ? "Collapse" : "Expand"}
+                          >
+                            {isScanning
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : isOpen
+                                ? <ChevronDown size={13} />
+                                : <ChevronRight size={13} />
+                            }
+                          </button>
                           <a
                             href={`${chain.explorer.replace(/\/$/, "")}/address/${wallet.address}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                             title="Explorer"
                           >
                             <ExternalLink size={13} />
                           </a>
+
+                          {/* 구분선 */}
+                          <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                          {/* 내보내기 + 삭제 */}
+                          <button
+                            onClick={() => !isScanning && summary?.status === "done" && handleExport(wallet, summary)}
+                            disabled={isScanning || summary?.status !== "done"}
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Export CSV"
+                          >
+                            <Download size={13} />
+                          </button>
                           <button
                             onClick={() => {
                               if (confirm(`Remove wallet "${wallet.label}"?`)) {
                                 removeWallet(wallet.id);
                               }
                             }}
-                            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                             title="Delete wallet"
                           >
                             <Trash2 size={13} />
                           </button>
+
                         </div>
                       </td>
                     </tr>
 
                     {/* Expanded detail row */}
                     {isOpen && !isScanning && hasPositions && summary && (
-                      <tr className="border-b border-gray-100">
-                        <td colSpan={7} className="px-0 py-0 bg-gray-50" style={{ overflow: "hidden" }}>
+                      <tr className="border-b border-gray-200">
+                        <td colSpan={7} className="px-0 py-0 bg-gray-50/70 border-t border-gray-100" style={{ overflow: "hidden" }}>
                           <div className="pl-4 sm:pl-10 pr-4 py-4 space-y-4">
 
                             {/* ── V3 Positions Table ── */}

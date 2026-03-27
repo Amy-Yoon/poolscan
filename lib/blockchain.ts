@@ -591,12 +591,16 @@ export async function fetchTokenPrices(
     const t0 = meta.token0?.toLowerCase();
     const t1 = meta.token1?.toLowerCase();
     if (!t0 || !t1) continue;
-    const rate = Number(meta.price); // token1 per token0
     const bal0 = Number(meta.t0Amt);
     const bal1 = Number(meta.t1Amt);
-    if (rate > 0 && (bal0 > 0 || bal1 > 0)) {
+    // V3: price comes from sqrtPriceX96 via gateway
+    // V2: gateway returns price=0, so fall back to t1Amt/t0Amt (= reserve ratio = spot rate)
+    const rate = Number(meta.price) > 0 ? Number(meta.price) : (bal0 > 0 && bal1 > 0 ? bal1 / bal0 : 0);
+    if (rate > 0) {
       poolRates.push({ t0, t1, rate, bal0, bal1 });
       console.log(`[priceOracle] pool ${pool.address.slice(0,10)} ${meta.symbol0}/${meta.symbol1} rate=${rate.toFixed(6)} bal0=${bal0.toFixed(2)} bal1=${bal1.toFixed(2)}`);
+    } else {
+      console.log(`[priceOracle] SKIP pool ${pool.address.slice(0,10)} ${meta.symbol0}/${meta.symbol1} rate=0 bal0=${bal0} bal1=${bal1} metaPrice=${meta.price}`);
     }
   }
   console.log(`[priceOracle] poolRates collected: ${poolRates.length}`);
@@ -647,8 +651,9 @@ export async function fetchTokenPrices(
         const basePrice = priceMap[baseAddr];
         const tokenPrice = isT0 ? pr.rate * basePrice : (1 / pr.rate) * basePrice;
         const baseBal = isT0 ? pr.bal1 : pr.bal0;
-        const w = baseBal * basePrice;
-        if (w > 0 && tokenPrice > 0 && isFinite(tokenPrice)) { num += tokenPrice * w; den += w; }
+        // Use TVL-weighted average; fall back to unit weight when balance data unavailable
+        const w = baseBal > 0 ? baseBal * basePrice : (basePrice > 0 ? basePrice : 1);
+        if (tokenPrice > 0 && isFinite(tokenPrice)) { num += tokenPrice * w; den += w; }
       }
       if (den > 0) {
         priceMap[aL] = num / den;
@@ -786,7 +791,17 @@ export async function getWalletLPPositions(walletAddress: string, chainId: Chain
   // Only use knownPoolAddresses for V2 scanning — DB pools no longer store type.
   const v2v3Positions: { v2: any[], v3: any[] } = { v2: [], v3: [] };
 
-  const allScanAddrs = (chain.knownPoolAddresses || []).map(p => p.address);
+  // Merge hardcoded V2 list with all DB-registered pools for this chain
+  // V3 pools will return 0 on balanceOf and be silently skipped
+  const knownSet = new Set((chain.knownPoolAddresses || []).map(p => p.address.toLowerCase()));
+  const dbOnlyAddrs = pools
+    .filter(p => p.chain_id === chainId)
+    .map(p => p.address)
+    .filter(addr => !knownSet.has(addr.toLowerCase()));
+  const allScanAddrs = [
+    ...(chain.knownPoolAddresses || []).map(p => p.address),
+    ...dbOnlyAddrs,
+  ];
 
   if (allScanAddrs.length > 0) {
     const balanceAbi = parseAbi(["function balanceOf(address) view returns (uint256)"]);

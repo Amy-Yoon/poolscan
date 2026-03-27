@@ -5,13 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getPoolData, fetchTokenPrices } from "@/lib/blockchain";
 import { getChain, fmtAmt, fmtRate, fmtFullUSD } from "@/lib/utils";
-import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, Trash2, Copy, Check } from "lucide-react";
 
 export default function PoolDetailPage() {
   const params = useParams();
   const router = useRouter();
   const address = params.address as string;
-  const { chainId, pools, removePool, togglePoolStatus } = useApp();
+  const { chainId, pools, removePool, togglePoolStatus, metadata, tokenPrices: ctxPrices } = useApp();
   const chain = getChain(chainId);
 
   const [data, setData] = useState<any>(null);
@@ -20,6 +20,13 @@ export default function PoolDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const dbPool = pools.find(p => p.address.toLowerCase() === address.toLowerCase());
 
@@ -37,12 +44,25 @@ export default function PoolDetailPage() {
         // type is determined on-chain by getPoolData; DB no longer stores it
         const enriched = await getPoolData(address, chainId, "v3");
         setData(enriched);
-        const pResults = await fetchTokenPrices([enriched.token0.address, enriched.token1.address], chainId);
+        const pResults = await fetchTokenPrices(
+          [enriched.token0.address, enriched.token1.address],
+          chainId,
+          pools,
+          [],
+          metadata
+        );
         const pMap: Record<string, string> = {};
-        pResults.forEach((r: any) => (pMap[r.address.toLowerCase()] = r.price));
+        // context prices as base (stablecoin 포함), 온체인 결과로 덮어쓰기
+        Object.entries(ctxPrices).forEach(([addr, price]) => { if (price > 0) pMap[addr] = String(price); });
+        pResults.forEach((r: any) => { if (Number(r.price) > 0) pMap[r.address.toLowerCase()] = r.price; });
         setTokenPrices(pMap);
       } catch (e: any) {
-        setError(e.message || "Failed to load on-chain data");
+        const msg: string = e?.message || e?.shortMessage || "";
+        const isNotDeployed =
+          msg.includes("returned no data") ||
+          msg.includes("does not have the function") ||
+          msg.includes("is not a contract");
+        setError(isNotDeployed ? "__NOT_DEPLOYED__" : msg || "Failed to load on-chain data");
       } finally {
         setIsLoading(false);
       }
@@ -60,20 +80,29 @@ export default function PoolDetailPage() {
   }
 
   if (error || !data) {
+    const isNotDeployed = error === "__NOT_DEPLOYED__";
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4 max-w-sm mx-auto text-center">
-        <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-          <AlertTriangle size={22} className="text-red-500" />
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isNotDeployed ? "bg-amber-50" : "bg-red-50"}`}>
+          <AlertTriangle size={22} className={isNotDeployed ? "text-amber-500" : "text-red-500"} />
         </div>
         <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-1">Failed to Load Data</h2>
-          <p className="text-sm text-gray-500">{error}</p>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">
+            {isNotDeployed ? "Contract Not Yet Deployed" : "Failed to Load Data"}
+          </h2>
+          <p className="text-sm text-gray-500">
+            {isNotDeployed
+              ? "This contract has not been deployed on-chain yet."
+              : error}
+          </p>
           <p className="text-[11px] text-gray-400 font-mono mt-1">{address}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-black transition-colors">
-            Retry
-          </button>
+          {!isNotDeployed && (
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-black transition-colors">
+              Retry
+            </button>
+          )}
           <button onClick={() => router.back()} className="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">
             Go Back
           </button>
@@ -82,11 +111,21 @@ export default function PoolDetailPage() {
     );
   }
 
-  const t0Value = Number(data.token0.balance) * Number(tokenPrices[data.token0.address.toLowerCase()] || 0);
-  const t1Value = Number(data.token1.balance) * Number(tokenPrices[data.token1.address.toLowerCase()] || 0);
+  // 로컬 fetch → ctxPrices 순서로 가격 조회 (metadata 업데이트 후 ctxPrices 먼저 반영됨)
+  const getPrice = (addr: string): number => {
+    const local = Number(tokenPrices[addr.toLowerCase()] || 0);
+    if (local > 0) return local;
+    return ctxPrices[addr.toLowerCase()] || 0;
+  };
+
+  const t0Value = Number(data.token0.balance) * getPrice(data.token0.address);
+  const t1Value = Number(data.token1.balance) * getPrice(data.token1.address);
+  // 직접 계산값 우선 사용 (게이트웨이 TVL은 V2에서 한쪽만 반환하는 버그 있음)
+  const computedTVL = t0Value + t1Value;
+  const effectiveTVL = computedTVL > 0 ? computedTVL : Number(data.tvl);
 
   return (
-    <div className="max-w-[1100px]">
+    <div>
       {/* 삭제 확인 다이얼로그 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
@@ -151,42 +190,50 @@ export default function PoolDetailPage() {
           </div>
         </div>
 
-        {/* Row 2: contract address (left) + action buttons (right) — always full-width */}
+        {/* Row 2: address pill (copy+explorer 포함) + Set Inactive/Delete 그룹 */}
         <div className="flex items-center gap-2">
-          <div className="h-9 flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 min-w-0 overflow-hidden">
-            <span className="text-[11px] text-gray-400 shrink-0">Contract</span>
-            <span className="text-[12px] font-mono text-gray-600 truncate">
-              {data.address.slice(0, 6)}…{data.address.slice(-6)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            {dbPool && (
-              <button
-                onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
-                className="h-9 px-3 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
-              >
-                {dbPool.status === "i" ? "Activate" : "Set Inactive"}
-              </button>
-            )}
+          {/* 주소 + 복사 + Explorer — 하나의 pill */}
+          <div className="h-9 flex items-center min-w-0 overflow-hidden flex-1 bg-white border border-gray-200 rounded-lg divide-x divide-gray-200">
+            <div className="flex items-center gap-1.5 px-3 min-w-0 overflow-hidden flex-1">
+              <span className="text-[11px] text-gray-400 shrink-0">Contract</span>
+              <span className="text-[12px] font-mono text-gray-600 truncate">{data.address}</span>
+            </div>
+            <button
+              onClick={handleCopy}
+              className="h-full px-2.5 flex items-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
+              title="Copy address"
+            >
+              {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+            </button>
             <a
               href={`${chain.explorer}address/${address}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-9 px-3 flex items-center gap-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
+              className="h-full px-2.5 flex items-center gap-1 text-[12px] font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
+              title="Explorer"
             >
-              Explorer <ExternalLink size={12} />
+              <ExternalLink size={13} />
             </a>
-            {dbPool && (
+          </div>
+
+          {/* Set Inactive + Delete — 붙어있는 버튼 그룹 */}
+          {dbPool && (
+            <div className="flex items-center h-9 bg-white border border-gray-200 rounded-lg overflow-hidden divide-x divide-gray-200 shrink-0">
+              <button
+                onClick={() => togglePoolStatus(dbPool.id, dbPool.status)}
+                className="h-full px-3 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+              >
+                {dbPool.status === "i" ? "Activate" : "Set Inactive"}
+              </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="h-9 w-9 flex items-center justify-center bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                className="h-full px-2.5 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                 title="Delete pool"
               >
-                <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
+                <Trash2 size={14} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -232,7 +279,7 @@ export default function PoolDetailPage() {
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="text-xs text-gray-500 mb-4">TVL</div>
           <div className="text-[11px] text-gray-400 mb-1">Total Value Locked</div>
-          <div className="text-xl font-semibold text-gray-900 truncate">{fmtFullUSD(data.tvl)}</div>
+          <div className="text-xl font-semibold text-gray-900 truncate">{fmtFullUSD(effectiveTVL)}</div>
           {data.type === "v3" && (
             <div className="border-t border-gray-100 mt-4 pt-4">
               <div className="text-[11px] text-gray-400 mb-1">Current Tick</div>
