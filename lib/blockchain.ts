@@ -131,6 +131,47 @@ export function tickToPrice(sqrtPriceX96: bigint, d0: number = 18, d1: number = 
   return ratio * (10 ** d0 / 10 ** d1);
 }
 
+/**
+ * 특정 블록 시점의 교환비 조회
+ * V3: slot0()의 sqrtPriceX96 → tickToPrice
+ * V2: getReserves() → reserve1 / reserve0
+ */
+export async function getPoolRateAtBlock(
+  address: string,
+  chainId: number,
+  blockNumber: bigint,
+  poolType: "v2" | "v3",
+  dec0: number,
+  dec1: number,
+): Promise<{ rate: number; r0?: number; r1?: number }> {
+  const client = getClient(chainId);
+  const addr = getAddress(address) as `0x${string}`;
+
+  if (poolType === "v3") {
+    const slot0Raw = await client.readContract({
+      address: addr,
+      abi: V3_ABI,
+      functionName: "slot0",
+      blockNumber,
+    });
+    const s0 = slot0Raw as any;
+    const sqrtPriceX96: bigint = s0?.sqrtPriceX96 ?? s0?.[0] ?? BigInt(0);
+    if (sqrtPriceX96 === BigInt(0)) throw new Error("sqrtPriceX96 is zero at this block");
+    return { rate: tickToPrice(sqrtPriceX96, dec0, dec1) };
+  } else {
+    const res = await client.readContract({
+      address: addr,
+      abi: V2_ABI,
+      functionName: "getReserves",
+      blockNumber,
+    });
+    const r0 = Number(formatUnits((res as any)[0], dec0));
+    const r1 = Number(formatUnits((res as any)[1], dec1));
+    if (r0 === 0) throw new Error("reserve0 is zero at this block");
+    return { rate: r1 / r0, r0, r1 };
+  }
+}
+
 export async function analyzeAddress(address: string, chainId: number): Promise<SearchResult> {
   if (!isAddress(address)) throw new Error("Invalid address format");
   const client = getClient(chainId);

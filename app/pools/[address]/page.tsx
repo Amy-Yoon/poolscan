@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import { getPoolData, fetchTokenPrices } from "@/lib/blockchain";
+import { getPoolData, fetchTokenPrices, getPoolRateAtBlock } from "@/lib/blockchain";
 import { getChain, fmtAmt, fmtRate, fmtFullUSD } from "@/lib/utils";
-import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, Trash2, Copy, Check } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, AlertTriangle, Trash2, Copy, Check, History, Search } from "lucide-react";
 
 export default function PoolDetailPage() {
   const params = useParams();
@@ -21,6 +21,33 @@ export default function PoolDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // ── Historical rate at block
+  const [blockInput, setBlockInput] = useState("");
+  const [histResult, setHistResult] = useState<{ block: string; rate: number; r0?: number; r1?: number } | null>(null);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histError, setHistError] = useState<string | null>(null);
+
+  const handleHistoricalRate = async () => {
+    const blockNum = blockInput.trim().replace(/,/g, "");
+    if (!blockNum || isNaN(Number(blockNum))) return;
+    setHistLoading(true);
+    setHistError(null);
+    setHistResult(null);
+    try {
+      const dec0 = data?.token0?.decimals ?? 18;
+      const dec1 = data?.token1?.decimals ?? 18;
+      const result = await getPoolRateAtBlock(
+        address, chainId, BigInt(blockNum),
+        data?.type ?? "v3", dec0, dec1,
+      );
+      setHistResult({ block: blockNum, ...result });
+    } catch (e: any) {
+      setHistError(e?.shortMessage || e?.message || "조회 실패");
+    } finally {
+      setHistLoading(false);
+    }
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(address);
@@ -238,7 +265,7 @@ export default function PoolDetailPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         {/* Exchange Rates */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="text-xs text-gray-500 mb-4">Exchange Rate</div>
@@ -287,6 +314,98 @@ export default function PoolDetailPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Historical Rate Lookup */}
+      <div className="bg-white border border-gray-100 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <History size={14} className="text-gray-400" />
+          <span className="text-xs text-gray-500 font-medium">Historical Exchange Rate</span>
+          <span className="text-[11px] text-gray-300">— 특정 블록 시점의 교환비 조회</span>
+        </div>
+
+        {/* Input row */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 h-9 px-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-blue-400 focus-within:bg-white transition-colors">
+            <span className="text-[11px] text-gray-400 shrink-0">Block #</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={blockInput}
+              onChange={e => {
+                setBlockInput(e.target.value);
+                setHistResult(null);
+                setHistError(null);
+              }}
+              onKeyDown={e => e.key === "Enter" && handleHistoricalRate()}
+              placeholder="e.g. 12345678"
+              className="flex-1 bg-transparent text-sm font-mono text-gray-800 placeholder:text-gray-300 outline-none min-w-0"
+            />
+          </div>
+          <button
+            onClick={handleHistoricalRate}
+            disabled={histLoading || !blockInput.trim()}
+            className="h-9 px-4 flex items-center gap-1.5 bg-gray-900 hover:bg-black disabled:opacity-40 text-white text-[13px] font-medium rounded-lg transition-colors shrink-0"
+          >
+            {histLoading
+              ? <Loader2 size={13} className="animate-spin" />
+              : <Search size={13} />
+            }
+            {histLoading ? "조회 중…" : "조회"}
+          </button>
+        </div>
+
+        {/* Result */}
+        {histError && (
+          <div className="mt-3 flex items-center gap-2 text-[12px] text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <AlertTriangle size={12} />
+            {histError}
+          </div>
+        )}
+
+        {histResult && !histError && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Rate A→B */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <div className="text-[11px] text-gray-400 mb-1">
+                1 {data.token0.symbol} = &nbsp;
+                <span className="font-mono text-[10px] text-gray-300">block #{histResult.block}</span>
+              </div>
+              <div className="text-lg font-semibold text-gray-900">
+                {fmtRate(histResult.rate)}{" "}
+                <span className="text-sm font-normal text-gray-400">{data.token1.symbol}</span>
+              </div>
+              {/* 현재 대비 변화율 */}
+              {data.price > 0 && (() => {
+                const diff = ((histResult.rate - data.price) / data.price) * 100;
+                const isPos = diff > 0;
+                return (
+                  <div className={`text-[11px] mt-1 font-medium ${isPos ? "text-emerald-600" : "text-red-500"}`}>
+                    {isPos ? "▲" : "▼"} {Math.abs(diff).toFixed(2)}% vs 현재
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Rate B→A */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <div className="text-[11px] text-gray-400 mb-1">
+                1 {data.token1.symbol} = &nbsp;
+                <span className="font-mono text-[10px] text-gray-300">block #{histResult.block}</span>
+              </div>
+              <div className="text-lg font-semibold text-gray-900">
+                {histResult.rate > 0 ? fmtRate(1 / histResult.rate) : "—"}{" "}
+                <span className="text-sm font-normal text-gray-400">{data.token0.symbol}</span>
+              </div>
+              {/* V2: reserve 수량도 표시 */}
+              {histResult.r0 !== undefined && (
+                <div className="text-[11px] text-gray-400 mt-1">
+                  Reserve {fmtAmt(histResult.r0)} / {fmtAmt(histResult.r1 ?? 0)}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
