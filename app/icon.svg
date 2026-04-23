@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Blue rounded background -->
+  <rect width="32" height="32" rx="7" fill="#2563EB"/>
+  <!-- ScanSearch icon (white) — scan corners + magnifying glass -->
+  <!-- Top-left corner -->
+  <path d="M7 12V8h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Top-right corner -->
+  <path d="M25 12V8h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Bottom-left corner -->
+  <path d="M7 20v4h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Bottom-right corner -->
+  <path d="M25 20v4h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Magnifying glass circle -->
+  <circle cx="15" cy="16" r="4" stroke="white" stroke-width="2" fill="none"/>
+  <!-- Magnifying glass handle -->
+  <line x1="18" y1="19.5" x2="21" y2="22.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+</svg>
